@@ -20,6 +20,7 @@ var _active_tween: Tween
 var _flash_tween: Tween
 
 var _shadow: Polygon2D
+var _aura_ring: Polygon2D
 var _pivot: Node2D
 var _sprite: Sprite2D
 var _dust_particles: CPUParticles2D
@@ -45,6 +46,17 @@ func _ensure_nodes() -> void:
 	_shadow.polygon = pts
 	_shadow.position = Vector2(0, 4)
 	add_child(_shadow)
+
+	_aura_ring = Polygon2D.new()
+	_aura_ring.name = "AuraRing"
+	_aura_ring.visible = false
+	var aura_pts := PackedVector2Array()
+	for i in 20:
+		var ang := (float(i) / 20.0) * TAU
+		aura_pts.append(Vector2(cos(ang) * 56.0, sin(ang) * 18.0))
+	_aura_ring.polygon = aura_pts
+	_aura_ring.position = Vector2(0, 3)
+	add_child(_aura_ring)
 
 	_pivot = Node2D.new()
 	_pivot.name = "VisualPivot"
@@ -328,6 +340,30 @@ func respawn() -> void:
 	is_dead = false
 	_sprite.modulate = Color.WHITE
 	play_idle()
+
+
+func set_aura(col: Color, active: bool) -> void:
+	_ensure_nodes()
+	_aura_ring.visible = active
+	if active:
+		_aura_ring.color = Color(col.r, col.g, col.b, 0.48)
+
+
+func spawn_vfx_sprite(tex_path: String, local_pos: Vector2, target_scale: float = 1.25, tint: Color = Color.WHITE) -> void:
+	var tex: Texture2D = load(tex_path)
+	if tex == null:
+		return
+	var sp := Sprite2D.new()
+	sp.texture = tex
+	sp.position = local_pos
+	sp.scale = Vector2(target_scale * 0.65, target_scale * 0.65)
+	sp.modulate = tint
+	sp.z_index = 25
+	add_child(sp)
+	var vt := sp.create_tween()
+	vt.tween_property(sp, "scale", Vector2(target_scale * 1.25, target_scale * 1.25), 0.24).set_trans(Tween.TRANS_EXPO).set_ease(Tween.EASE_OUT)
+	vt.parallel().tween_property(sp, "modulate:a", 0.0, 0.34).set_delay(0.10)
+	vt.tween_callback(sp.queue_free)
 
 
 func _emit_burst(col: Color, x_offset: float) -> void:

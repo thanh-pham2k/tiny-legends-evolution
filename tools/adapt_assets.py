@@ -41,6 +41,7 @@ HOLE_BY_DARK_OUTLINE = {
     "heroes_row1_pack.png",
     "heroes_row2_pack.png",
     "knight_evolution_pack.png",
+    "knight_branch_evolution_pack.png",
     "enemies_mobs_base_pack.png",
     "bosses_base_pack.png",
     "decor_system_props_pack.png",
@@ -59,6 +60,9 @@ UI_PRESERVE_INTERIOR = {
     "ui_currency_stars_pack.png",
     "ui_rank_emblems_pack.png",
     "ui_class_tags_pack.png",
+    "ui_campaign_battle_hud_pack.png",
+    "ui_small_nav_icons_pack.png",
+    "ui_gacha_and_skill_icons_pack.png",
 }
 
 ANIM_GRIDS = {
@@ -258,6 +262,54 @@ PACK_SPECS = {
         "size": 96,
         "anchor": "center",
     },
+    "ui_campaign_battle_hud_pack.png": {
+        "grid": (4, 2),
+        "dir": "ui",
+        "names": [
+            "ui_pin_stage_active.png", "ui_pin_stage_normal.png",
+            "ui_pin_stage_boss.png", "ui_btn_back.png",
+            "ui_btn_speed_x2.png", "ui_btn_pause.png",
+            "ui_battle_portrait_frame.png", "ui_battle_ult_ready_glow.png",
+        ],
+        "size": 128,
+        "anchor": "center",
+    },
+    "ui_small_nav_icons_pack.png": {
+        "grid": (4, 2),
+        "dir": "ui",
+        "names": [
+            "ui_icon_mail.png", "ui_icon_quests.png",
+            "ui_icon_events.png", "ui_icon_bag.png",
+            "ui_icon_guild.png", "ui_icon_achieve.png",
+            "ui_icon_settings.png", "ui_icon_idle_chest.png",
+        ],
+        "size": 96,
+        "anchor": "center",
+    },
+    "knight_branch_evolution_pack.png": {
+        "grid": (2, 1),
+        "dir": "heroes",
+        "names": [
+            "knight_evo_fire.png", "knight_evo_holy.png",
+        ],
+        "size": 128,
+        "anchor": "bottom-center",
+        "hole_cells": {0, 1},
+    },
+    "ui_gacha_and_skill_icons_pack.png": {
+        "grid": (4, 3),
+        "dir": "ui",
+        "names": [
+            "ui_gacha_card_back.png", "ui_gacha_beam.png",
+            "ui_evo_arrow.png", "ui_banner_victory.png",
+            "ui_banner_defeat.png", "skill_icon_slash.png",
+            "skill_icon_shield.png", "skill_icon_axe.png",
+            "skill_icon_dagger.png", "skill_icon_arrow.png",
+            "skill_icon_arcane.png", "skill_icon_heal.png",
+        ],
+        "size": 128,
+        "anchor": "center",
+    },
 }
 
 
@@ -375,6 +427,15 @@ def trim_alpha_bbox(rgba: np.ndarray, alpha_thresh: int = 12):
     return int(xs.min()), int(ys.min()), int(xs.max()) + 1, int(ys.max()) + 1
 
 
+def body_bbox_from_ink(rgba: np.ndarray):
+    """Bounding box of dark-ink character outlines, ignoring bright/cyan VFX and soft shadows."""
+    dark_ink = (rgba[:, :, 3] > 200) & (rgba[:, :, :3].max(axis=2) < 95)
+    ys, xs = np.where(dark_ink)
+    if len(xs) < 25 or len(ys) < 25:
+        return trim_alpha_bbox(rgba)
+    return int(xs.min()), int(ys.min()), int(xs.max()) + 1, int(ys.max()) + 1
+
+
 def normalize_sheet(
     cells_rgba,
     cols: int,
@@ -384,13 +445,27 @@ def normalize_sheet(
     max_content_ratio: float = 0.88,
     margin_bottom: int = 6,
     uniform_scale: bool = True,
+    target_body_h: int = 0,
 ):
     bboxes = [trim_alpha_bbox(c) for c in cells_rgba]
+    ink_bboxes = [body_bbox_from_ink(c) for c in cells_rgba]
     valid = [(i, b) for i, b in enumerate(bboxes) if b is not None]
 
     target = int(round(cell_size * max_content_ratio))
     global_scale = 1.0
-    if valid and uniform_scale:
+    if valid and target_body_h > 0:
+        valid_ink_hs = [
+            ink_bboxes[i][3] - ink_bboxes[i][1]
+            for i, _ in valid
+            if ink_bboxes[i] is not None
+        ]
+        ref_body_h = float(np.median(valid_ink_hs)) if valid_ink_hs else float(target_body_h)
+        global_scale = float(target_body_h) / max(1.0, ref_body_h)
+        max_w = max(b[2] - b[0] for _, b in valid)
+        max_h = max(b[3] - b[1] for _, b in valid)
+        fit_cap = min((cell_size - 4) / max(1, max_w), (cell_size - margin_bottom - 4) / max(1, max_h))
+        global_scale = min(global_scale, fit_cap)
+    elif valid and uniform_scale:
         max_w = max(b[2] - b[0] for _, b in valid)
         max_h = max(b[3] - b[1] for _, b in valid)
         global_scale = min(target / max(1, max_w), target / max(1, max_h))
@@ -402,11 +477,19 @@ def normalize_sheet(
         if b is not None:
             crop = Image.fromarray(cell[b[1]:b[3], b[0]:b[2]])
             cw, ch = crop.size
-            sc = global_scale if uniform_scale else min(target / max(1, cw), target / max(1, ch))
+            sc = global_scale if (uniform_scale or target_body_h > 0) else min(target / max(1, cw), target / max(1, ch))
             nw = max(1, int(round(cw * sc)))
             nh = max(1, int(round(ch * sc)))
             resized = crop.resize((nw, nh), Image.Resampling.LANCZOS)
-            if anchor == "bottom-center":
+            ib = ink_bboxes[idx]
+            if anchor == "bottom-center" and target_body_h > 0 and ib is not None:
+                ink_cx = ((ib[0] + ib[2]) * 0.5 - b[0]) * sc
+                ink_bot = (ib[3] - b[1]) * sc
+                px = int(round(cell_size * 0.5 - ink_cx))
+                py = int(round((cell_size - margin_bottom) - ink_bot))
+                px = max(2, min(cell_size - nw - 2, px))
+                py = max(2, min(cell_size - nh - 2, py))
+            elif anchor == "bottom-center":
                 px = (cell_size - nw) // 2
                 py = cell_size - margin_bottom - nh
             else:
@@ -518,17 +601,17 @@ def adapt_full_bleed_panels(img_arr: np.ndarray, out_names: list, panel_w: int =
 
 
 def classify_anim_sheet(cname: str):
-    """Detect <entity>_<anim>.png for heroes, evolution tiers, mobs, and bosses."""
+    """Detect <entity>_<anim>.png and return (sub_dir, cols, rows, cell_size, target_body_h, margin_bottom, anchor)."""
     m = re.match(r"^([a-z0-9_]+)_(idle|run|attack|skill|hit|death)\.png$", cname)
     if not m:
         return None
     entity, anim = m.group(1), m.group(2)
     cols, rows, anchor = ANIM_GRIDS[anim]
     if entity.startswith("boss_"):
-        return ("bosses", cols, rows, 256, anchor)
+        return ("bosses", cols, rows, 256, 164, 14, anchor)
     if entity in KNOWN_MOBS:
-        return ("enemies", cols, rows, 128, anchor)
-    return ("heroes", cols, rows, 128, anchor)
+        return ("enemies", cols, rows, 192, 104, 12, anchor)
+    return ("heroes", cols, rows, 192, 104, 12, anchor)
 
 
 def process_file(raw_path: str, cname: str, dry_run: bool = False) -> bool:
@@ -567,7 +650,7 @@ def process_file(raw_path: str, cname: str, dry_run: bool = False) -> bool:
             save_single_trimmed(cell_rgba, os.path.join(out_dir, out_name), size=128, anchor="bottom-center")
         return True
 
-    # 3. Battle backgrounds (4 full-bleed 16:9 panels)
+    # 3. Battle backgrounds & UI scene backdrops (full-bleed)
     if cname == "bg_battle_vistas_pack.png":
         names = [
             "bg_plains_kingdom.png",
@@ -580,6 +663,32 @@ def process_file(raw_path: str, cname: str, dry_run: bool = False) -> bool:
             return True
         img_arr = np.array(Image.open(raw_path).convert("RGB"))
         adapt_full_bleed_panels(img_arr, names, panel_w=1280, panel_h=720)
+        return True
+
+    if cname == "bg_ui_scenes_pack.png":
+        names = [
+            "bg_summon_portal.png",
+            "bg_evolution_stage.png",
+            "bg_hero_detail_starry.png",
+            "bg_idle_rewards_stage.png",
+        ]
+        if dry_run:
+            print(f"  [DRY-RUN] {cname} -> assets/sprites/backgrounds/ ({', '.join(names)})")
+            return True
+        img_arr = np.array(Image.open(raw_path).convert("RGB"))
+        adapt_full_bleed_panels(img_arr, names, panel_w=1024, panel_h=1024)
+        return True
+
+    if cname in {"bg_lobby_town.png", "bg_campaign_map.png", "bg_title_splash.png"}:
+        if dry_run:
+            print(f"  [DRY-RUN] {cname} -> assets/sprites/backgrounds/{cname}")
+            return True
+        img = Image.open(raw_path).convert("RGBA")
+        max_dim = 1280
+        if max(img.width, img.height) > max_dim:
+            sc = max_dim / max(img.width, img.height)
+            img = img.resize((int(round(img.width * sc)), int(round(img.height * sc))), Image.Resampling.LANCZOS)
+        img.save(os.path.join(SPRITES_DIR, "backgrounds", cname))
         return True
 
     # 4. Parallax prop strips
@@ -661,14 +770,22 @@ def process_file(raw_path: str, cname: str, dry_run: bool = False) -> bool:
     # 8. Dynamic Hero / Mob / Boss Animation Sheets (<entity>_<anim>.png)
     anim_spec = classify_anim_sheet(cname)
     if anim_spec is not None:
-        sub_dir, cols, rows, cell_size, anchor = anim_spec
+        sub_dir, cols, rows, cell_size, target_body_h, margin_bottom, anchor = anim_spec
         if dry_run:
-            print(f"  [DRY-RUN] {cname} -> assets/sprites/{sub_dir}/{cname} ({cols}x{rows} @ {cell_size}px)")
+            print(f"  [DRY-RUN] {cname} -> assets/sprites/{sub_dir}/{cname} ({cols}x{rows} @ {cell_size}px, body={target_body_h}px)")
             return True
         img_arr = np.array(Image.open(raw_path).convert("RGB"))
         hole_set = set(range(cols * rows))
-        cells = extract_cells(img_arr, cols, rows, cname, per_row=False, hole_cells=hole_set)
-        sheet = normalize_sheet(cells, cols, rows, cell_size, anchor=anchor)
+        cells = extract_cells(img_arr, cols, rows, cname, per_row=True, hole_cells=hole_set)
+        sheet = normalize_sheet(
+            cells,
+            cols,
+            rows,
+            cell_size,
+            anchor=anchor,
+            margin_bottom=margin_bottom,
+            target_body_h=target_body_h,
+        )
         sheet.save(os.path.join(SPRITES_DIR, sub_dir, cname))
         return True
 

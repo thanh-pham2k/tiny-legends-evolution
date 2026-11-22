@@ -18,11 +18,11 @@ Create a 2D Japanese anime-fantasy chibi RPG hero character pack arranged in a s
 Every character MUST stand in a lively heroic 3/4 ready pose facing RIGHT, full body visible from head to boots with generous white margin around each cell.
 Subimages (6 distinct chibi heroes):
 - Cell 1 (row 1, col 1, -> knight_base.png): Knight (Tank) — cheerful blonde spiky-haired boy hero in silver-blue plate armor and dark-blue cape, wielding a gleaming steel broadsword and a blue-and-gold crest heater shield.
-- Cell 2 (row 1, col 2, -> paladin_base.png): Paladin (Tank) — gentle silver-pink long-haired female paladin in white-and-gold sacred plate armor with pink cape, holding a tall golden-tipped royal halberd/staff and a radiant gold shield.
+- Cell 2 (row 1, col 2, -> paladin_base.png): Paladin (Tank) — gentle silver-pink long-haired female paladin in white, crimson-and-gold sacred plate armor with white cape, holding a tall ornate crimson-and-gold royal battle-staff/halberd.
 - Cell 3 (row 1, col 3, -> berserker_base.png): Berserker (Warrior) — fierce crimson-haired young warrior in dark charcoal-and-gold chest armor with red waist sash, gripping a giant heavy serrated battleaxe with both hands.
 - Cell 4 (row 2, col 1, -> assassin_base.png): Assassin (Assassin) — agile dark-violet ponytail female rogue in sleek plum-and-emerald stealth tunic with leather belt, holding twin curved violet-edged daggers ready to strike.
 - Cell 5 (row 2, col 2, -> archer_base.png): Archer (Ranger) — playful emerald-green haired elf-eared archer girl in leafy forest-green ranger cloak and brown boots, holding a curved wooden recurve bow and arrow.
-- Cell 6 (row 2, col 3, -> sniper_base.png): Sniper (Ranger) — confident orange-brown twin-tailed sharpshooter girl in amber-gold and brown hunter outfit with leather quiver, aiming a sleek wooden-and-brass crossbow/rifle.
+- Cell 6 (row 2, col 3, -> sniper_base.png): Sniper (Ranger) — confident orange-amber high-ponytail sharpshooter girl with teal-green hair ribbon in brown-and-green hunter outfit, aiming a sleek wooden-and-gold hunting rifle/crossbow.
 Composition & Technical Rules: Bottom-center aligned inside each cell at matching chibi head-to-body proportions (roughly 1:1.5 chibi ratio), identical scale across all 6 cells, zero overlap.
 Art Style: Hand-drawn 2D chibi fantasy RPG game art, crisp dark-brown/black ink outlines (~3px), vibrant cel-shaded anime watercolor coloring with clean specular highlights.
 Clean Output: Pure flat solid white background (#FFFFFF), no ground patch, no drop shadow on background, strictly NO grid lines, NO borders, NO text, NO class labels, NO watermarks.
@@ -77,11 +77,11 @@ Create a 2D Japanese anime-fantasy chibi RPG hero bust portrait pack arranged in
 Every portrait is a waist-up dynamic close-up facing slightly RIGHT, designed to fit cleanly inside hero cards and circular HUD avatar frames.
 Subimages (6 matching hero portraits):
 - Cell 1 (r1c1, -> knight_portrait.png): Blonde spiky-haired Knight smiling heroically in silver-blue armor raising his sword hilt.
-- Cell 2 (r1c2, -> paladin_portrait.png): Silver-pink haired Paladin in white-gold armor with serene determined gaze.
+- Cell 2 (r1c2, -> paladin_portrait.png): Silver-pink haired Paladin in white-crimson-gold armor holding her ornate crimson-gold royal staff with serene determined gaze.
 - Cell 3 (r1c3, -> berserker_portrait.png): Wild crimson-haired Berserker grinning fiercely with heavy dark-gold shoulder plate.
 - Cell 4 (r2c1, -> assassin_portrait.png): Dark-violet ponytail Assassin winking sharply with twin daggers near her shoulder.
 - Cell 5 (r2c2, -> archer_portrait.png): Cheerful emerald-haired elf Archer in leafy hood holding her wooden bow.
-- Cell 6 (r2c3, -> sniper_portrait.png): Confident orange-brown twin-tailed Sniper aiming past her brass scope/crossbow.
+- Cell 6 (r2c3, -> sniper_portrait.png): Confident orange-amber high-ponytail Sniper with teal ribbon aiming past her wooden-gold hunting rifle/crossbow.
 Composition & Technical Rules: Center-aligned bust framing inside each square cell with clean shoulders/weapon framing and generous white outer margins, no card borders.
 Art Style: Hand-drawn 2D chibi fantasy RPG game art, crisp dark ink outlines, vibrant glossy anime cel-shading.
 Clean Output: Pure flat solid white background (#FFFFFF), no frames, no grid lines, no text, no watermarks.

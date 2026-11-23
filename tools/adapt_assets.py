@@ -34,6 +34,7 @@ SPRITE_SUBDIRS = [
     "ui",
     "cards",
     "decor",
+    "town",
 ]
 
 # White regions inside dark ink outlines (e.g., gaps between legs/arches/fence rails)
@@ -46,6 +47,9 @@ HOLE_BY_DARK_OUTLINE = {
     "bosses_base_pack.png",
     "decor_system_props_pack.png",
     "bg_parallax_props_pack.png",
+    "hero_standees_pack_1.png",
+    "hero_standees_pack_2.png",
+    "town_decor_trees_pack.png",
 }
 
 # Preserve bright interior fills on UI badges, frames, parchment panels, and cards
@@ -63,6 +67,17 @@ UI_PRESERVE_INTERIOR = {
     "ui_campaign_battle_hud_pack.png",
     "ui_small_nav_icons_pack.png",
     "ui_gacha_and_skill_icons_pack.png",
+    "town_bg_mid_horizon.png",
+    "town_buildings_core_pack.png",
+    "town_npc_and_ui_pack.png",
+    "ui_showcase_frames_pack.png",
+    "gacha_summon_vfx_sheet.png",
+}
+
+STANDEE_HOLE_SEEDS = {
+    "archer_standee.png": [(0.711, 0.300), (0.739, 0.611), (0.672, 0.727)],
+    "paladin_standee.png": [(0.657, 0.553)],
+    "druid_standee.png": [(0.663, 0.579)],
 }
 
 ANIM_GRIDS = {
@@ -607,10 +622,53 @@ def save_proportional_trimmed(rgba: np.ndarray, out_path: str, target_height: in
     crop.save(out_path)
 
 
-def adapt_full_bleed_panels(img_arr: np.ndarray, out_names: list, panel_w: int = 1280, panel_h: int = 720):
-    cols, rows = 2, 2
+def clear_enclosed_seeds(rgba: np.ndarray, seeds: list) -> np.ndarray:
+    """Flood-fill remove enclosed white background regions starting from normalized (fx, fy) seeds."""
+    rgb = rgba[:, :, :3]
+    alpha = rgba[:, :, 3].copy()
+    r = rgb[:, :, 0].astype(np.int16)
+    g = rgb[:, :, 1].astype(np.int16)
+    b = rgb[:, :, 2].astype(np.int16)
+    mx = np.maximum(np.maximum(r, g), b)
+    mn = np.minimum(np.minimum(r, g), b)
+    chroma = mx - mn
+    bg_cand = (mn >= 238) & (chroma <= 18)
+    struct4 = np.array([[0, 1, 0], [1, 1, 1], [0, 1, 0]], dtype=np.int32)
+    lbl, _ = ndimage.label(bg_cand, structure=struct4)
+    h, w = alpha.shape
+    seed_labels = set()
+    for fx, fy in seeds:
+        sx = min(w - 1, max(0, int(round(fx * w))))
+        sy = min(h - 1, max(0, int(round(fy * h))))
+        lab = int(lbl[sy, sx])
+        if lab > 0:
+            seed_labels.add(lab)
+    if seed_labels:
+        clear_mask = np.isin(lbl, list(seed_labels))
+        alpha[clear_mask] = 0
+        edge = ndimage.binary_dilation(clear_mask, iterations=1) & (~clear_mask)
+        neutral_edge = edge & (chroma <= 22) & (mn >= 205)
+        if np.any(neutral_edge):
+            mean_val = (r + g + b) / 3.0
+            soft_a = np.clip((248.0 - mean_val) / 43.0 * 255.0, 0, 255).astype(np.uint8)
+            alpha = np.where(neutral_edge, np.minimum(alpha, soft_a), alpha)
+    out = rgba.copy()
+    out[:, :, 3] = alpha
+    return out
+
+
+def adapt_full_bleed_panels(
+    img_arr: np.ndarray,
+    out_names: list,
+    panel_w: int = 1280,
+    panel_h: int = 720,
+    cols: int = 2,
+    rows: int = 2,
+    out_sub: str = "backgrounds",
+    extra_pad: int = 2,
+):
     row_xs, ys = find_grid_cuts(img_arr, cols, rows, per_row_cols=True)
-    out_dir = os.path.join(SPRITES_DIR, "backgrounds")
+    out_dir = os.path.join(SPRITES_DIR, out_sub)
     for r in range(rows):
         xs = row_xs[r]
         for c in range(cols):
@@ -636,8 +694,8 @@ def adapt_full_bleed_panels(img_arr: np.ndarray, out_names: list, panel_w: int =
             while right > left + 10 and white_mask[:, right - 1].mean() >= 0.78:
                 right -= 1
 
-            pad_x = 2 if (right - left) > 40 else 0
-            pad_y = 2 if (bottom - top) > 40 else 0
+            pad_x = extra_pad if (right - left) > 40 else 0
+            pad_y = extra_pad if (bottom - top) > 40 else 0
             core = sub[top + pad_y:bottom - pad_y, left + pad_x:right - pad_x]
             rgba_core = np.dstack([core, np.full(core.shape[:2], 255, dtype=np.uint8)])
             panel_img = Image.fromarray(rgba_core).resize((panel_w, panel_h), Image.Resampling.LANCZOS)
@@ -828,6 +886,244 @@ def process_file(raw_path: str, cname: str, dry_run: bool = False) -> bool:
         except ValueError as exc:
             raise ValueError(f"{cname}: {exc}") from exc
         sheet.save(os.path.join(SPRITES_DIR, sub_dir, cname))
+        return True
+
+    # 9. Fantasy Town World Map, Showcase Upgrade & Gacha Pack (001-016)
+    if cname in {"town_bg_sky_far.png", "gacha_summon_banner.png", "gacha_result_bg.png"}:
+        sub = "town" if cname.startswith("town_") else "backgrounds"
+        if dry_run:
+            print(f"  [DRY-RUN] {cname} -> assets/sprites/{sub}/{cname}")
+            return True
+        img = Image.open(raw_path).convert("RGBA")
+        max_dim = 1440
+        if max(img.width, img.height) > max_dim:
+            sc = max_dim / max(img.width, img.height)
+            img = img.resize((int(round(img.width * sc)), int(round(img.height * sc))), Image.Resampling.LANCZOS)
+        img.save(os.path.join(SPRITES_DIR, sub, cname))
+        return True
+
+    if cname == "town_bg_mid_horizon.png":
+        if dry_run:
+            print(f"  [DRY-RUN] {cname} -> assets/sprites/town/{cname}")
+            return True
+        img_arr = np.array(Image.open(raw_path).convert("RGB"))
+        rgba = remove_background(img_arr, cname, force_holes=False)
+        b = trim_alpha_bbox(rgba)
+        if b is not None:
+            # Crop top & bottom white margins while preserving seamless full horizontal width
+            rgba = rgba[b[1]:b[3], :, :]
+        out_img = Image.fromarray(rgba)
+        if out_img.width > 1600:
+            sc = 1600.0 / out_img.width
+            out_img = out_img.resize((1600, max(1, int(round(out_img.height * sc)))), Image.Resampling.LANCZOS)
+        out_img.save(os.path.join(SPRITES_DIR, "town", cname))
+        return True
+
+    if cname == "town_ground_tiles_pack.png":
+        names = ["town_ground_plaza.png", "town_ground_sakura.png", "town_ground_road.png", "town_ground_transition.png"]
+        if dry_run:
+            print(f"  [DRY-RUN] {cname} -> assets/sprites/town/ ({', '.join(names)})")
+            return True
+        img_arr = np.array(Image.open(raw_path).convert("RGB"))
+        adapt_full_bleed_panels(img_arr, names, panel_w=512, panel_h=512, cols=2, rows=2, out_sub="town", extra_pad=4)
+        return True
+
+    if cname == "town_buildings_core_pack.png":
+        names = ["town_building_summon.png", "town_building_heroes.png", "town_building_arena.png", "town_building_treasury.png"]
+        if dry_run:
+            print(f"  [DRY-RUN] {cname} -> assets/sprites/town/ ({', '.join(names)})")
+            return True
+        img_arr = np.array(Image.open(raw_path).convert("RGB"))
+        cells = extract_cells(img_arr, 2, 2, cname)
+        out_dir = os.path.join(SPRITES_DIR, "town")
+        for cell_rgba, out_name in zip(cells, names):
+            save_proportional_trimmed(cell_rgba, os.path.join(out_dir, out_name), target_height=420)
+        return True
+
+    if cname == "town_landmarks_pack.png":
+        names = ["town_landmark_fountain.png", "town_landmark_gate.png"]
+        if dry_run:
+            print(f"  [DRY-RUN] {cname} -> assets/sprites/town/ ({', '.join(names)})")
+            return True
+        img_arr = np.array(Image.open(raw_path).convert("RGB"))
+        cells = extract_cells(img_arr, 2, 1, cname, hole_cells={1})
+        # Clear enclosed archway gap inside Eastern Gate
+        cells[1] = clear_enclosed_seeds(cells[1], [(0.50, 0.56)])
+        out_dir = os.path.join(SPRITES_DIR, "town")
+        for cell_rgba, out_name in zip(cells, names):
+            save_proportional_trimmed(cell_rgba, os.path.join(out_dir, out_name), target_height=420)
+        return True
+
+    if cname == "town_decor_trees_pack.png":
+        names = ["town_tree_sakura_large.png", "town_tree_sakura_weeping.png", "town_tree_maple.png", "town_bush_bamboo.png"]
+        if dry_run:
+            print(f"  [DRY-RUN] {cname} -> assets/sprites/town/ ({', '.join(names)})")
+            return True
+        img_arr = np.array(Image.open(raw_path).convert("RGB"))
+        cells = extract_cells(img_arr, 2, 2, cname, hole_cells={0, 1, 2, 3})
+        out_dir = os.path.join(SPRITES_DIR, "town")
+        for cell_rgba, out_name in zip(cells, names):
+            save_proportional_trimmed(cell_rgba, os.path.join(out_dir, out_name), target_height=340)
+        return True
+
+    if cname == "town_decor_props_pack.png":
+        names = ["town_prop_lantern.png", "town_prop_stall.png", "town_prop_signpost.png",
+                 "town_prop_bench.png", "town_prop_barrels.png", "town_prop_stairs.png"]
+        if dry_run:
+            print(f"  [DRY-RUN] {cname} -> assets/sprites/town/ ({', '.join(names)})")
+            return True
+        img_arr = np.array(Image.open(raw_path).convert("RGB"))
+        cells = extract_cells(img_arr, 3, 2, cname, per_row=False, hole_cells={1, 2})
+        out_dir = os.path.join(SPRITES_DIR, "town")
+        for cell_rgba, out_name in zip(cells, names):
+            save_proportional_trimmed(cell_rgba, os.path.join(out_dir, out_name), target_height=220)
+        return True
+
+    if cname == "town_npc_and_ui_pack.png":
+        if dry_run:
+            print(f"  [DRY-RUN] {cname} -> assets/sprites/town/ & ui/ (7 assets)")
+            return True
+        img_arr = np.array(Image.open(raw_path).convert("RGB"))
+        row_xs, ys = find_grid_cuts(img_arr, 3, 2, per_row_cols=True)
+        town_dir = os.path.join(SPRITES_DIR, "town")
+        ui_dir = os.path.join(SPRITES_DIR, "ui")
+        row1_names = ["town_npc_merchant.png", "town_pet_cat.png", "town_pet_fox.png"]
+        for c, out_name in enumerate(row1_names):
+            sub = img_arr[ys[0]:ys[1], row_xs[0][c]:row_xs[0][c + 1]]
+            rgba = remove_background(sub, cname, force_holes=(c == 0))
+            save_proportional_trimmed(rgba, os.path.join(town_dir, out_name), target_height=220)
+        for c, out_name in enumerate(["ui_town_nameplate.png", "ui_town_district_tab.png"]):
+            sub = img_arr[ys[1]:ys[2], row_xs[1][c]:row_xs[1][c + 1]]
+            rgba = remove_background(sub, cname, force_holes=False)
+            save_proportional_trimmed(rgba, os.path.join(ui_dir, out_name), target_height=110)
+        # Split Row 2 Col 3 horizontally into Arrow Right + Interact Pin
+        r2c2 = img_arr[ys[1]:ys[2], row_xs[1][2]:row_xs[1][3]]
+        sub_xs, _ = find_grid_cuts(r2c2, 2, 1, per_row_cols=False)
+        for idx, out_name in enumerate(["ui_town_arrow_right.png", "ui_town_interact_pin.png"]):
+            part = r2c2[:, sub_xs[0][idx]:sub_xs[0][idx + 1]]
+            rgba = remove_background(part, cname, force_holes=False)
+            save_proportional_trimmed(rgba, os.path.join(ui_dir, out_name), target_height=96)
+        return True
+
+    if cname == "ui_showcase_frames_pack.png":
+        if dry_run:
+            print(f"  [DRY-RUN] {cname} -> assets/sprites/ui/ (6 assets)")
+            return True
+        img_arr = np.array(Image.open(raw_path).convert("RGB"))
+        row_xs, ys = find_grid_cuts(img_arr, 2, 2, per_row_cols=True)
+        ui_dir = os.path.join(SPRITES_DIR, "ui")
+        # Top-Left: ornate 9-slice panel frame; Top-Right: header banner; Bottom-Left: green button
+        tl = remove_background(img_arr[ys[0]:ys[1], row_xs[0][0]:row_xs[0][1]], cname, force_holes=False)
+        save_proportional_trimmed(tl, os.path.join(ui_dir, "ui_showcase_panel_frame.png"), target_height=380)
+        tr = remove_background(img_arr[ys[0]:ys[1], row_xs[0][1]:row_xs[0][2]], cname, force_holes=False)
+        save_proportional_trimmed(tr, os.path.join(ui_dir, "ui_showcase_header_banner.png"), target_height=160)
+        bl = remove_background(img_arr[ys[1]:ys[2], row_xs[1][0]:row_xs[1][1]], cname, force_holes=False)
+        save_proportional_trimmed(bl, os.path.join(ui_dir, "ui_btn_green.png"), target_height=140)
+        # Bottom-Right: left = 2 vertical dividers, right = hollow glowing selection frame
+        br = img_arr[ys[1]:ys[2], row_xs[1][1]:row_xs[1][2]]
+        br_xs, _ = find_grid_cuts(br, 2, 1, per_row_cols=False)
+        # Search for wider gap before selection frame (~60% across br)
+        is_fg_br = (br.min(axis=2) < 236) | ((br.max(axis=2) - br.min(axis=2)) > 20)
+        col_den = is_fg_br.sum(axis=0)
+        split_x = _best_valley(col_den, int(br.shape[1] * 0.62), int(br.shape[1] * 0.18), br.shape[1])
+        div_strip = br[:, :split_x]
+        _, div_ys = find_grid_cuts(div_strip, 1, 2, per_row_cols=False)
+        for r_idx, out_name in enumerate(["ui_divider_gem.png", "ui_divider_flower.png"]):
+            d_part = remove_background(div_strip[div_ys[r_idx]:div_ys[r_idx + 1], :], cname, force_holes=False)
+            save_proportional_trimmed(d_part, os.path.join(ui_dir, out_name), target_height=48)
+        sel_raw = remove_background(br[:, split_x:], cname, force_holes=False)
+        sel_b = trim_alpha_bbox(sel_raw)
+        if sel_b is not None:
+            sel_crop = sel_raw[sel_b[1]:sel_b[3], sel_b[0]:sel_b[2]]
+            sel_crop = clear_enclosed_seeds(sel_crop, [(0.50, 0.50)])
+            save_proportional_trimmed(sel_crop, os.path.join(ui_dir, "ui_selection_glow_frame.png"), target_height=220)
+        return True
+
+    if cname == "showcase_pedestals_pack.png":
+        names = ["showcase_pedestal_light.png", "showcase_pedestal_fire.png", "showcase_pedestal_water.png", "showcase_pedestal_dark.png"]
+        if dry_run:
+            print(f"  [DRY-RUN] {cname} -> assets/sprites/ui/ ({', '.join(names)})")
+            return True
+        img_arr = np.array(Image.open(raw_path).convert("RGB"))
+        cells = extract_cells(img_arr, 2, 2, cname, hole_cells={0, 3})
+        cells[0] = clear_enclosed_seeds(cells[0], [(0.50, 0.24)])
+        cells[3] = clear_enclosed_seeds(cells[3], [(0.50, 0.26)])
+        out_dir = os.path.join(SPRITES_DIR, "ui")
+        for cell_rgba, out_name in zip(cells, names):
+            save_proportional_trimmed(cell_rgba, os.path.join(out_dir, out_name), target_height=340)
+        return True
+
+    if cname == "bg_showcase_elements_pack.png":
+        names = [
+            "bg_showcase_fire.png", "bg_showcase_water.png", "bg_showcase_wind.png",
+            "bg_showcase_earth.png", "bg_showcase_light.png", "bg_showcase_dark.png",
+        ]
+        if dry_run:
+            print(f"  [DRY-RUN] {cname} -> assets/sprites/backgrounds/ ({', '.join(names)})")
+            return True
+        img_arr = np.array(Image.open(raw_path).convert("RGB"))
+        adapt_full_bleed_panels(img_arr, names, panel_w=800, panel_h=640, cols=3, rows=2, out_sub="backgrounds", extra_pad=4)
+        return True
+
+    if cname in {"hero_standees_pack_1.png", "hero_standees_pack_2.png"}:
+        names = [
+            "knight_standee.png", "paladin_standee.png", "berserker_standee.png",
+            "assassin_standee.png", "archer_standee.png", "sniper_standee.png",
+        ] if cname == "hero_standees_pack_1.png" else [
+            "mage_standee.png", "enchanter_standee.png", "priest_standee.png",
+            "druid_standee.png", "samurai_standee.png", "ninja_standee.png",
+        ]
+        if dry_run:
+            print(f"  [DRY-RUN] {cname} -> assets/sprites/heroes/ ({', '.join(names)})")
+            return True
+        img_arr = np.array(Image.open(raw_path).convert("RGB"))
+        cells = extract_cells(img_arr, 3, 2, cname, per_row=False, hole_cells={0, 1, 2, 3, 4, 5})
+        out_dir = os.path.join(SPRITES_DIR, "heroes")
+        for cell_rgba, out_name in zip(cells, names):
+            # Remove tiny disconnected edge specks (e.g. neighbor cape tip creeping across cell boundary)
+            fg = cell_rgba[:, :, 3] > 20
+            lbl, n = ndimage.label(fg)
+            if n > 1:
+                counts = np.bincount(lbl.ravel())
+                counts[0] = 0
+                main_count = counts.max()
+                keep = np.isin(lbl, np.where(counts >= max(120, main_count * 0.01))[0])
+                cell_rgba = cell_rgba.copy()
+                cell_rgba[~keep, 3] = 0
+            seeds = STANDEE_HOLE_SEEDS.get(out_name)
+            if seeds:
+                b = trim_alpha_bbox(cell_rgba)
+                if b is not None:
+                    trimmed = cell_rgba[b[1]:b[3], b[0]:b[2]]
+                    cell_rgba = clear_enclosed_seeds(trimmed, seeds)
+            save_proportional_trimmed(cell_rgba, os.path.join(out_dir, out_name), target_height=512)
+        return True
+
+    if cname == "gacha_summon_vfx_sheet.png":
+        names = ["vfx_gacha_ssr_ring.png", "vfx_gacha_ur_starburst.png", "vfx_gacha_seal.png", "vfx_gacha_pillar.png"]
+        if dry_run:
+            print(f"  [DRY-RUN] {cname} -> assets/sprites/vfx/ ({', '.join(names)})")
+            return True
+        img_arr = np.array(Image.open(raw_path).convert("RGB"))
+        cells = extract_cells(img_arr, 2, 2, cname, per_row=False)
+        # Clear hollow white center of Golden SSR Burst Ring (cell 0)
+        b0 = trim_alpha_bbox(cells[0])
+        if b0 is not None:
+            c0 = cells[0][b0[1]:b0[3], b0[0]:b0[2]]
+            cells[0] = clear_enclosed_seeds(c0, [(0.50, 0.50)])
+        # Fill any narrow glow-ray leak inside the core of UR starburst (cell 1)
+        b1 = trim_alpha_bbox(cells[1])
+        if b1 is not None:
+            c1 = cells[1][b1[1]:b1[3], b1[0]:b1[2]].copy()
+            ch, cw = c1.shape[:2]
+            yy, xx = np.ogrid[:ch, :cw]
+            inner_disc = ((xx - cw * 0.5) ** 2 + (yy - ch * 0.5) ** 2) <= (min(cw, ch) * 0.30) ** 2
+            leak = inner_disc & (c1[:, :, 3] < 255)
+            c1[leak, 3] = 255
+            cells[1] = c1
+        out_dir = os.path.join(SPRITES_DIR, "vfx")
+        for cell_rgba, out_name in zip(cells, names):
+            save_proportional_trimmed(cell_rgba, os.path.join(out_dir, out_name), target_height=384)
         return True
 
     return False

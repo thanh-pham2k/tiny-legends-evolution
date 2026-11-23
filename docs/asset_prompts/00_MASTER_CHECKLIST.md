@@ -7,29 +7,29 @@
 
 ---
 
-## Đợt 4 — Đang Chờ Tạo (Active Prompts)
+## Đợt 4 — Mở Rộng Town Map, Heroes Showcase & Gacha (Đã Adapt Sạch)
 
 ### 1. Fantasy Town World Map 3 Khu Vực ([09_fantasy_town_world_map_mvp.md](09_fantasy_town_world_map_mvp.md))
-- [ ] `inbox/town_bg_sky_far.png` `[P0]` — Nền trời, mây, núi & lâu đài xa (parallax tầng xa, 16:9 seamless)
-- [ ] `inbox/town_bg_mid_horizon.png` `[P0]` — Dải rừng Sakura, mái nhà & thác nước tầng giữa (16:9, nền trắng phía trên)
-- [ ] `inbox/town_ground_tiles_pack.png` `[P0]` — Gói `2×2` mặt đất 3 khu vực & viền chuyển tiếp
-- [ ] `inbox/town_buildings_core_pack.png` `[P0]` — Gói `2×2` 4 công trình lõi (`Summon Portal`, `Heroes Hall`, `Battle Arena`, `Idle Treasury`)
-- [ ] `inbox/town_landmarks_pack.png` `[P0]` — Gói `2×1` điểm nhấn (`Central Hero Fountain` & `Eastern Fantasy Gate`)
-- [ ] `inbox/town_decor_trees_pack.png` `[P1]` — Gói `2×2` biến thể cây Sakura, cây Phong & cụm tre/hoa
-- [ ] `inbox/town_decor_props_pack.png` `[P1]` — Atlas `3×2` đạo cụ thị trấn (đèn đá, sạp hàng, biển chỉ đường, ghế đá/bồn hoa, thùng gỗ, bậc thang)
-- [ ] `inbox/town_npc_and_ui_pack.png` `[P1]` — Gói `3×2` NPC/thú cưng & UI bảng tên/tab khu vực/mũi tên cuộn
+- [x] `inbox/town_bg_sky_far.png` `[P0]` — Nền trời, mây, núi & lâu đài xa (parallax tầng xa, 16:9 seamless)
+- [x] `inbox/town_bg_mid_horizon.png` `[P0]` — Dải rừng Sakura, mái nhà & thác nước tầng giữa (16:9, nền trắng phía trên)
+- [x] `inbox/town_ground_tiles_pack.png` `[P0]` — Gói `2×2` mặt đất 3 khu vực & viền chuyển tiếp
+- [x] `inbox/town_buildings_core_pack.png` `[P0]` — Gói `2×2` 4 công trình lõi (`Summon Portal`, `Heroes Hall`, `Battle Arena`, `Idle Treasury`)
+- [x] `inbox/town_landmarks_pack.png` `[P0]` — Gói `2×1` điểm nhấn (`Central Hero Fountain` & `Eastern Fantasy Gate`)
+- [x] `inbox/town_decor_trees_pack.png` `[P1]` — Gói `2×2` biến thể cây Sakura, cây Phong & cụm tre/hoa
+- [x] `inbox/town_decor_props_pack.png` `[P1]` — Atlas `3×2` đạo cụ thị trấn (đèn đá, sạp hàng, biển chỉ đường, ghế đá/bồn hoa, thùng gỗ, bậc thang)
+- [x] `inbox/town_npc_and_ui_pack.png` `[P1]` — Gói `3×2` NPC/thú cưng & UI bảng tên/tab khu vực/mũi tên cuộn
 
 ### 2. Nâng Cấp Heroes Showcase & RPG UI ([10_heroes_showcase_upgrade.md](10_heroes_showcase_upgrade.md))
-- [ ] `inbox/ui_showcase_frames_pack.png` `[P0]` — Khung bảng 9-slice hoa văn vàng, thanh ngăn & nút xanh lá
-- [ ] `inbox/showcase_pedestals_pack.png` `[P0]` — Gói `2×2` 4 bệ đứng ma pháp Showcase (`Light`, `Fire`, `Water`, `Dark`)
-- [ ] `inbox/bg_showcase_elements_pack.png` `[P0]` — Gói `3×2` 6 nền Showcase theo nguyên tố
-- [ ] `inbox/hero_standees_pack_1.png` `[P1]` — Gói `3×2` tranh đứng High-Res 6 Hero hàng 1
-- [ ] `inbox/hero_standees_pack_2.png` `[P1]` — Gói `3×2` tranh đứng High-Res 6 Hero hàng 2
+- [x] `inbox/ui_showcase_frames_pack.png` `[P0]` — Khung bảng 9-slice hoa văn vàng, thanh ngăn & nút xanh lá
+- [x] `inbox/showcase_pedestals_pack.png` `[P0]` — Gói `2×2` 4 bệ đứng ma pháp Showcase (`Light`, `Fire`, `Water`, `Dark`)
+- [x] `inbox/bg_showcase_elements_pack.png` `[P0]` — Gói `3×2` 6 nền Showcase theo nguyên tố
+- [x] `inbox/hero_standees_pack_1.png` `[P1]` — Gói `3×2` tranh đứng High-Res 6 Hero hàng 1
+- [x] `inbox/hero_standees_pack_2.png` `[P1]` — Gói `3×2` tranh đứng High-Res 6 Hero hàng 2
 
 ### 3. Nâng Cấp Màn Gacha Summon ([11_gacha_summon_mvp_assets.md](11_gacha_summon_mvp_assets.md))
-- [ ] `inbox/gacha_summon_banner.png` `[P0]` — Nền Summon Banner giới thiệu tướng (`16:9`)
-- [ ] `inbox/gacha_summon_vfx_sheet.png` `[P0]` — Gói `2×2` Summon Reveal VFX (`SSR`, `UR`, vòng phép, cột sáng)
-- [ ] `inbox/gacha_result_bg.png` `[P1]` — Nền tối sao trời hiển thị kết quả triệu hồi `x1 / x10` (`16:9`)
+- [x] `inbox/gacha_summon_banner.png` `[P0]` — Nền Summon Banner giới thiệu tướng (`16:9`)
+- [x] `inbox/gacha_summon_vfx_sheet.png` `[P0]` — Gói `2×2` Summon Reveal VFX (`SSR`, `UR`, vòng phép, cột sáng)
+- [x] `inbox/gacha_result_bg.png` `[P1]` — Nền tối sao trời hiển thị kết quả triệu hồi `x1 / x10` (`16:9`)
 
 ---
 

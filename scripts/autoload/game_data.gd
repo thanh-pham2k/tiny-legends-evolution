@@ -308,6 +308,30 @@ func get_hero_portrait_path(hero_id: String, evo_tier: String = "basic") -> Stri
 	return "res://assets/sprites/heroes/%s_portrait.png" % hero_id
 
 
+func get_hero_standee_path(hero_id: String) -> String:
+	var p := "res://assets/sprites/heroes/%s_standee.png" % hero_id
+	if ResourceLoader.exists(p):
+		return p
+	return get_hero_portrait_path(hero_id, "basic")
+
+
+func get_showcase_bg_path(element: String) -> String:
+	var el := element if element in ["fire", "water", "wind", "earth", "light", "dark"] else "light"
+	return "res://assets/sprites/backgrounds/bg_showcase_%s.png" % el
+
+
+func get_showcase_pedestal_path(element: String) -> String:
+	match element:
+		"fire":
+			return "res://assets/sprites/ui/showcase_pedestal_fire.png"
+		"water", "wind":
+			return "res://assets/sprites/ui/showcase_pedestal_water.png"
+		"dark":
+			return "res://assets/sprites/ui/showcase_pedestal_dark.png"
+		_:
+			return "res://assets/sprites/ui/showcase_pedestal_light.png"
+
+
 # Zero-based contact cels selected from the visible swing or release in each sheet.
 const CONTACT_CELS := {
 	"knight": [2, 2], "knight_fire": [3, 3], "knight_holy": [2, 3],

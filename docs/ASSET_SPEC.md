@@ -25,13 +25,10 @@
   - **Heroes (12 anh hùng & các cấp tiến hóa):** Quay mặt sang **PHẢI** (`facing RIGHT`).
   - **Enemies (Mobs) & Bosses:** Quay mặt sang **TRÁI** (`facing LEFT`).
   - **Skill VFX / Đạn bay:** Hướng bay/chém sang **PHẢI** (hoặc căn giữa tâm đối với vòng phép/khiên/aura).
-- **Chuẩn lưới & kích thước ô (Animation Hero/Mob = `192×192 px` VFX-safe, chuẩn hóa chiều cao thân nhân vật `~104 px`; Base Pose/VFX = `128×128 px`; Boss = `256×256 px` thân `~164 px`):**
-  - `idle`: **4 frames** (`2×2` = `384×384 px` cho Hero/Mob, `512×512 px` cho Boss).
-  - `run`: **6 frames** (`3×2` = `576×384 px` cho Hero/Mob).
-  - `attack`: **6 frames** (`3×2` = `576×384 px` cho Hero/Mob, `768×512 px` cho Boss).
-  - `skill`: **6 frames** (`3×2` = `576×384 px` cho Hero/Mob, `768×512 px` cho Boss).
-  - `hit`: **3 frames** (`3×1` = `576×192 px`).
-  - `death`: **4 frames** (`2×2` = `384×384 px` cho Hero/Mob, `512×512 px` cho Boss).
+- **Chuẩn lưới animation và kích thước ô**
+  - `idle` 4 frame (`2×2`), `run`, `attack` và `skill` 6 frame (`3×2`), `hit` 3 frame (`3×1`), `death` 4 frame (`2×2`). Số ô cố định. Chiều rộng tối thiểu mỗi ô là 192 px cho Hero/Mob và 256 px cho Boss. Pipeline mở rộng chiều rộng hoặc vùng phía trên nếu VFX cần thêm chỗ.
+  - Pivot nằm giữa ô theo chiều ngang, cách đáy 48 px. Pipeline căn theo mật độ thân và đường đặt chân, đặt chiều cao thân mục tiêu ở 104 px cho Hero/Mob và 164 px cho Boss. Frame hit/death giữ chung tỷ lệ trong sheet để bảo toàn dáng ngã.
+  - `python3 tools/audit_sprite_motion.py` xuất JSON cho từng frame, bước dịch chuyển liền kề, RMS ngang/dọc và chênh lệch chiều cao trung vị giữa các clip.
   - **Portraits / Icons / Items / Badges:** `128×128 px` (tỉ lệ 1:1, căn giữa).
   - **Hero Card Frames (`R`, `SR`, `SSR`, `UR`):** `192×256 px` (tỉ lệ thẻ dọc, bảo toàn nền nội thất khung thẻ).
   - **Battle Backgrounds (`bg_*`):** `640×360 px` hoặc `1280×720 px` (`16:9` full-bleed từng panel).
@@ -152,7 +149,7 @@ Quy ước tên file: `<hero_id>_<anim>.png` (hỗ trợ cả `<hero_id>_<tier>_
 
 ## 4. Checklist Tối Ưu 60 FPS Trên Điện Thoại (Android)
 
-1. **Ngân sách VRAM cực nhẹ:** Mỗi sheet `192×192 px`/ô có kích thước `~80–120 KB` trên đĩa (và `~850 KB` VRAM RGBA không nén, thấp hơn nữa với ETC2/ASTC). Một trận **5v5** tối đa 10 nhân vật chỉ tốn **< 10 MB VRAM**, chạy mượt 60 FPS trên cả máy Android phổ thông.
+1. **Ngân sách VRAM cực nhẹ:** Tính theo kích thước sheet sau adapt, khoảng 4 byte mỗi pixel RGBA khi chưa nén VRAM. Kiểm tra ngân sách trên thiết bị đích với cả 10 nhân vật và VFX đang hoạt động.
 2. **Không bóng đổ vẽ cứng (No baked ground shadows):** Toàn bộ prompt animation cấm vẽ bóng dưới chân trên nền trắng để `UnitVisual` tự vẽ bóng động `Polygon2D` đồng bộ khi nhảy/ngã/xoay.
 3. **Tối đa 3 sheet cốt lõi mỗi Hero (`idle`, `attack`, `skill`):** Trạng thái `run`, `hit`, `death` dùng nội suy 60 FPS trong Godot (nghiêng chạy + bụi `CPUParticles2D`, shader chớp trắng `hit_flash.gdshader` + knockback, ngã `90°` + fade), vừa giữ chuyển động 60 FPS mượt, vừa giảm 50% dung lượng tải/RAM.
 4. **Cài đặt Engine:** Mặc định **60 FPS** (`GL Compatibility`), kèm tùy chọn **30 FPS** tiết kiệm pin trong Settings cho chế độ treo máy Idle.

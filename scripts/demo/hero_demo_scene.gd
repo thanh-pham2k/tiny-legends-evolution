@@ -1,13 +1,12 @@
 extends Node2D
 
-const TEX_KNIGHT_IDLE := preload("res://assets/sprites/heroes/knight_idle.png")
-const TEX_KNIGHT_RUN := preload("res://assets/sprites/heroes/knight_run.png")
-const TEX_KNIGHT_ATTACK := preload("res://assets/sprites/heroes/knight_attack.png")
-const TEX_KNIGHT_SKILL := preload("res://assets/sprites/heroes/knight_skill.png")
-const TEX_GOBLIN_RUN := preload("res://assets/sprites/enemies/goblin_run.png")
 const TEX_BG_PLAINS := preload("res://assets/sprites/backgrounds/bg_plains_kingdom.png")
 
 var _arena_root: Node2D
+var _control_deck: PanelContainer
+var _wide_background: TextureRect
+var _arena_background: Sprite2D
+var _lane: Polygon2D
 var _knight: UnitVisual
 var _goblin: UnitVisual
 
@@ -25,22 +24,36 @@ var _auto_timer: float = 0.65
 var _auto_step: int = 0
 var _goblin_hp: float = 100.0
 var _knight_hp: float = 100.0
-var _hitstop_active: bool = false
 
 
 func _ready() -> void:
+	Engine.time_scale = _speed_scale
 	_build_scene()
 	_configure_units()
+	get_viewport().size_changed.connect(_layout)
+	_layout()
 	_update_ui_labels()
 
 
 func _build_scene() -> void:
+	var background_layer := CanvasLayer.new()
+	background_layer.layer = -1
+	add_child(background_layer)
+	_wide_background = TextureRect.new()
+	_wide_background.texture = TEX_BG_PLAINS
+	_wide_background.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_wide_background.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	_wide_background.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_wide_background.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	background_layer.add_child(_wide_background)
+
 	# Upper Battle Arena (720 x 740)
 	_arena_root = Node2D.new()
 	_arena_root.name = "ArenaRoot"
 	add_child(_arena_root)
 
 	var bg := Sprite2D.new()
+	_arena_background = bg
 	bg.name = "BattleBackground"
 	bg.texture = TEX_BG_PLAINS
 	bg.centered = false
@@ -55,6 +68,7 @@ func _build_scene() -> void:
 
 	# Ground lane tint strip for clear unit readability
 	var lane := Polygon2D.new()
+	_lane = lane
 	lane.polygon = PackedVector2Array([
 		Vector2(-40, 520),
 		Vector2(760, 520),
@@ -78,6 +92,7 @@ func _build_scene() -> void:
 	_goblin = UnitVisual.new()
 	_goblin.name = "Goblin"
 	_goblin.facing_sign = -1.0
+	_goblin.art_facing = -1.0
 	_goblin.unit_scale = 1.75
 	_goblin.position = Vector2(530, 625)
 	_arena_root.add_child(_goblin)
@@ -92,6 +107,7 @@ func _build_scene() -> void:
 	add_child(ui_layer)
 
 	var panel := PanelContainer.new()
+	_control_deck = panel
 	panel.position = Vector2(0, 740)
 	panel.size = Vector2(720, 540)
 	var style := StyleBoxFlat.new()
@@ -203,16 +219,8 @@ func _make_button(label_text: String, base_col: Color, callback: Callable) -> Bu
 
 
 func _configure_units() -> void:
-	_knight.configure_animations({
-		"idle": {"texture": TEX_KNIGHT_IDLE, "hframes": 2, "vframes": 2, "frames": 4, "fps": 6.0, "loop": true},
-		"run": {"texture": TEX_KNIGHT_RUN, "hframes": 3, "vframes": 2, "frames": 6, "fps": 12.0, "loop": true},
-		"attack": {"texture": TEX_KNIGHT_ATTACK, "hframes": 3, "vframes": 2, "frames": 6, "fps": 14.0, "loop": false},
-		"skill": {"texture": TEX_KNIGHT_SKILL, "hframes": 3, "vframes": 2, "frames": 6, "fps": 11.0, "loop": false},
-	})
-	_goblin.configure_animations({
-		"idle": {"texture": TEX_GOBLIN_RUN, "hframes": 3, "vframes": 2, "frames": 6, "fps": 8.0, "loop": true},
-		"run": {"texture": TEX_GOBLIN_RUN, "hframes": 3, "vframes": 2, "frames": 6, "fps": 12.0, "loop": true},
-	})
+	_knight.configure_animations(GameData.get_hero_anim_map("knight"))
+	_goblin.configure_animations(GameData.get_enemy_anim_map("goblin"))
 
 
 func _process(delta: float) -> void:
@@ -236,8 +244,10 @@ func _on_knight_impact(is_skill: bool) -> void:
 	_spawn_damage_popup(_goblin.position + Vector2(0, -175), dmg, is_skill)
 
 	if _juice_enabled:
-		_trigger_hitstop(0.085 if is_skill else 0.045)
-		_shake_arena(11.0 if is_skill else 5.0)
+		var stop := 0.068 if is_skill else 0.033
+		_knight.freeze_pose(stop)
+		_goblin.freeze_pose(stop)
+		_shake_arena(6.0 if is_skill else 2.5)
 
 	if _goblin_hp <= 0.0:
 		_goblin.play_death()
@@ -250,16 +260,6 @@ func _on_knight_impact(is_skill: bool) -> void:
 		)
 	else:
 		_goblin.play_hit(is_skill)
-
-
-func _trigger_hitstop(duration: float) -> void:
-	if _hitstop_active:
-		return
-	_hitstop_active = true
-	Engine.time_scale = 0.06
-	await get_tree().create_timer(duration, true, false, true).timeout
-	Engine.time_scale = _speed_scale
-	_hitstop_active = false
 
 
 func _shake_arena(strength: float) -> void:
@@ -323,8 +323,7 @@ func _on_toggle_auto() -> void:
 
 func _on_toggle_speed() -> void:
 	_speed_scale = 2.0 if is_equal_approx(_speed_scale, 1.0) else 1.0
-	if not _hitstop_active:
-		Engine.time_scale = _speed_scale
+	Engine.time_scale = _speed_scale
 	_update_ui_labels()
 
 
@@ -349,6 +348,26 @@ func _update_ui_labels() -> void:
 	_btn_auto.text = "Auto Battle: %s" % ("ON" if _auto_battle else "OFF")
 	_btn_speed.text = "Speed: %dx" % int(_speed_scale)
 	_btn_juice.text = "60 FPS Juice: %s" % ("ON" if _juice_enabled else "OFF")
+
+
+func _layout() -> void:
+	var area := get_viewport_rect().size
+	var wide := UiFx.is_wide(area)
+	_wide_background.visible = wide
+	_arena_background.visible = not wide
+	_lane.visible = not wide
+	if wide:
+		var stage_width := (area.x - 32.0) * 0.62
+		var fit := UiFx.fit_rect(Vector2(720, 640), Rect2(8, 8, stage_width, area.y - 16))
+		var zoom := fit.size.x / 720.0
+		scale = Vector2.ONE * zoom
+		position = fit.position - Vector2(0, 100.0 * zoom)
+		UiFx.fit_control(_control_deck, Vector2(720, 420), Rect2(16 + stage_width, 8, area.x - stage_width - 24, area.y - 16))
+	else:
+		var fit := UiFx.fit_rect(Vector2(720, 1280), Rect2(Vector2.ZERO, area))
+		scale = Vector2.ONE * (fit.size.x / 720.0)
+		position = fit.position
+		UiFx.fit_control(_control_deck, Vector2(720, 540), Rect2(position + Vector2(0, 740) * scale, Vector2(720, 540) * scale))
 
 
 func _exit_tree() -> void:

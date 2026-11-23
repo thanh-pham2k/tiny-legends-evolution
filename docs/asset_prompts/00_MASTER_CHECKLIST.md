@@ -1,85 +1,57 @@
-# 00 — Danh Sách Tổng Hợp Prompt Tạo Asset (MVP v0.1 Checklist)
+# 00 — Danh Sách Tổng Hợp Prompt Tạo Asset (Master Checklist)
 
 > **Tham chiếu:** [GDD.md](../GDD.md) · [ASSET_SPEC.md](../ASSET_SPEC.md) · [base_assetsheet.jpg](../references/base_assetsheet.jpg) · [ui_screens_mockup.jpg](../references/ui_screens_mockup.jpg)  
 > **Quy trình:** Lấy prompt trong các file bên dưới → Tạo ảnh và đặt vào `inbox/` theo đúng tên `Output file` → Chạy `python3 tools/adapt_assets.py` → Ảnh sạch tự vào `assets/sprites/`, bản gốc tự chuyển sang `archive/`.
 >
-> **Lưu ý bám sát Base Asset:** Khi sinh ảnh cho các bộ `01..05`, `07`, `08`, luôn đính kèm [base_assetsheet.jpg](../references/base_assetsheet.jpg) làm ảnh tham chiếu phong cách & tạo hình nhân vật; khi sinh bộ màn hình & HUD ở `06`, đính kèm thêm [ui_screens_mockup.jpg](../references/ui_screens_mockup.jpg) để đồng bộ màu sắc và bố cục.
->
-> *Ghi chú:* 6 sheet thử nghiệm hiện có cho bản demo (`knight_idle`, `knight_run`, `knight_attack`, `knight_skill`, `goblin_run`, `bg_battle_vistas_pack`) vẫn được giữ ở trạng thái **cần tạo bản chính thức (`[ ]`)** bên dưới; khi bạn thả bản mới vào `inbox/` và chạy `adapt_assets.py`, file mới sẽ tự ghi đè sạch sẽ.
+> **Lưu ý:** Toàn bộ bộ prompt MVP v0.1 (`01`..`08`) đã tạo, adapt sạch và được lưu trữ gọn trong [archive/](archive/). Dưới đây là các gói mở rộng đang chờ tạo tiếp (`09` & `10`).
 
 ---
 
-## Đợt 1 — Ưu Tiên Cao (Khung MVP Chơi Được Từ Lobby → Map → Gacha → Battle 5v5)
+## Đợt 4 — Đang Chờ Tạo (Active Prompts)
 
-### A. Nền Màn Hình & Giao Diện Hệ Thống ([06_screens_lobby_map_gacha_idle.md](06_screens_lobby_map_gacha_idle.md) & [05_backgrounds_ui_cards_decor.md](05_backgrounds_ui_cards_decor.md))
-- [x] `inbox/bg_battle_vistas_pack.png` — 4 nền chiến đấu theo chương (`Plains`, `Desert`, `Tundra`, `Demon Castle`) ([05](05_backgrounds_ui_cards_decor.md))
-- [x] `inbox/bg_lobby_town.png` — Nền sảnh chính Thành phố Sakura
-- [x] `inbox/bg_campaign_map.png` — Nền bản đồ Campaign 20 màn
-- [x] `inbox/bg_ui_scenes_pack.png` — 4 nền: Summon Portal, Evolution Stage, Hero Detail, Idle Rewards
-- [x] `inbox/ui_hud_nav_pack.png` — 6 nút điều hướng chính (Heroes, Summon, Campaign, Tower, Events, Shop)
-- [x] `inbox/ui_small_nav_icons_pack.png` — 8 icon phụ (Mail, Quests, Events, Bag, Guild, Achieve, Settings, Idle Chest)
-- [x] `inbox/ui_panels_buttons_pack.png` — Khung Avatar, thanh tiền tệ, ribbon, bảng giấy da, 3 nút bấm
-- [x] `inbox/ui_campaign_battle_hud_pack.png` — 3 ghim bản đồ, Back/Speed x2/Pause, khung thẻ đội hình trận đấu, viền Ult Ready
-- [x] `inbox/ui_gacha_and_skill_icons_pack.png` — Mặt sau thẻ Gacha, tia sáng triệu hồi, mũi tên tiến hóa, Victory/Defeat, 7 icon kỹ năng
-- [x] `inbox/ui_hero_cards_rarity_pack.png` — 4 khung thẻ hiếm `R / SR / SSR / UR`
-- [x] `inbox/ui_currency_stars_pack.png` — Đống vàng, ngọc tím, pha lê, sao vàng/rỗng, nút gạt
-- [x] `inbox/ui_class_tags_pack.png` — 6 huy hiệu vai trò Class
+### 1. Fantasy Town World Map 3 Khu Vực ([09_fantasy_town_world_map_mvp.md](09_fantasy_town_world_map_mvp.md))
+- [ ] `inbox/town_bg_sky_far.png` `[P0]` — Nền trời, mây, núi & lâu đài xa (parallax tầng xa, 16:9 seamless)
+- [ ] `inbox/town_bg_mid_horizon.png` `[P0]` — Dải rừng Sakura, mái nhà & thác nước tầng giữa (16:9, nền trắng phía trên)
+- [ ] `inbox/town_ground_tiles_pack.png` `[P0]` — Gói `2×2` mặt đất 3 khu vực & viền chuyển tiếp
+- [ ] `inbox/town_buildings_core_pack.png` `[P0]` — Gói `2×2` 4 công trình lõi (`Summon Portal`, `Heroes Hall`, `Battle Arena`, `Idle Treasury`)
+- [ ] `inbox/town_landmarks_pack.png` `[P0]` — Gói `2×1` điểm nhấn (`Central Hero Fountain` & `Eastern Fantasy Gate`)
+- [ ] `inbox/town_decor_trees_pack.png` `[P1]` — Gói `2×2` biến thể cây Sakura, cây Phong & cụm tre/hoa
+- [ ] `inbox/town_decor_props_pack.png` `[P1]` — Atlas `3×2` đạo cụ thị trấn (đèn đá, sạp hàng, biển chỉ đường, ghế đá/bồn hoa, thùng gỗ, bậc thang)
+- [ ] `inbox/town_npc_and_ui_pack.png` `[P1]` — Gói `3×2` NPC/thú cưng & UI bảng tên/tab khu vực/mũi tên cuộn
 
-### B. 12 Hero, 6 Quái Thường, 3 Boss & Tiến Hóa Knight ([01_heroes_base_and_evolution.md](01_heroes_base_and_evolution.md), [03_enemies_and_bosses.md](03_enemies_and_bosses.md), [06](06_screens_lobby_map_gacha_idle.md))
-- [x] `inbox/heroes_row1_pack.png` — 6 Hero hàng 1 (`knight`, `paladin`, `berserker`, `assassin`, `archer`, `sniper`)
-- [x] `inbox/heroes_row2_pack.png` — 6 Hero hàng 2 (`mage`, `enchanter`, `priest`, `druid`, `samurai`, `ninja`)
-- [x] `inbox/heroes_portraits_row1.png` — 6 chân dung hàng 1 (cho thẻ bài & HUD)
-- [x] `inbox/heroes_portraits_row2.png` — 6 chân dung hàng 2
-- [x] `inbox/knight_evolution_pack.png` — 3 cấp thẳng (`Basic`, `Advance`, `Awaken`)
-- [x] `inbox/knight_branch_evolution_pack.png` — 2 nhánh USP (`Fire Knight` & `Holy Guardian`)
-- [x] `inbox/enemies_mobs_base_pack.png` — 6 quái thường (`goblin`, `skeleton`, `wolf`, `boar`, `dark_knight`, `dark_mage`)
-- [x] `inbox/bosses_base_pack.png` — 3 Boss (`boss_golem`, `boss_ice_dragon`, `boss_demon_lord`)
+### 2. Nâng Cấp Heroes Showcase & RPG UI ([10_heroes_showcase_upgrade.md](10_heroes_showcase_upgrade.md))
+- [ ] `inbox/ui_showcase_frames_pack.png` `[P0]` — Khung bảng 9-slice hoa văn vàng, thanh ngăn & nút xanh lá
+- [ ] `inbox/showcase_pedestals_pack.png` `[P0]` — Gói `2×2` 4 bệ đứng ma pháp Showcase (`Light`, `Fire`, `Water`, `Dark`)
+- [ ] `inbox/bg_showcase_elements_pack.png` `[P0]` — Gói `3×2` 6 nền Showcase theo nguyên tố
+- [ ] `inbox/hero_standees_pack_1.png` `[P1]` — Gói `3×2` tranh đứng High-Res 6 Hero hàng 1
+- [ ] `inbox/hero_standees_pack_2.png` `[P1]` — Gói `3×2` tranh đứng High-Res 6 Hero hàng 2
 
-### C. VFX, Icon Trạng Thái, Nguyên Tố & Vật Phẩm ([04_vfx_status_elements_items.md](04_vfx_status_elements_items.md))
-- [x] `inbox/vfx_offensive_pack.png` — 8 hiệu ứng kỹ năng tấn công
-- [x] `inbox/vfx_buff_dark_pack.png` — 6 hiệu ứng khiên, hồi máu & bóng tối
-- [x] `inbox/icons_status_buffs_pack.png` — 8 icon Buff
-- [x] `inbox/icons_status_debuffs_pack.png` — 8 icon Debuff
-- [x] `inbox/icons_elements_pack.png` — 6 icon Nguyên tố (`Fire`, `Water`, `Wind`, `Earth`, `Light`, `Dark`)
-- [x] `inbox/items_equipment_pack.png` — 6 icon Trang bị
-- [x] `inbox/items_loot_resources_pack.png` — 8 icon Vật phẩm & Vé Gacha
+### 3. Nâng Cấp Màn Gacha Summon ([11_gacha_summon_mvp_assets.md](11_gacha_summon_mvp_assets.md))
+- [ ] `inbox/gacha_summon_banner.png` `[P0]` — Nền Summon Banner giới thiệu tướng (`16:9`)
+- [ ] `inbox/gacha_summon_vfx_sheet.png` `[P0]` — Gói `2×2` Summon Reveal VFX (`SSR`, `UR`, vòng phép, cột sáng)
+- [ ] `inbox/gacha_result_bg.png` `[P1]` — Nền tối sao trời hiển thị kết quả triệu hồi `x1 / x10` (`16:9`)
 
 ---
 
-## Đợt 2 — Bộ Hoạt Ảnh Chiến Đấu Đầy Đủ Cho MVP 12 Hero & 3 Boss (Chuẩn 60 FPS Hybrid)
+## Đã Hoàn Thành & Đã Archive (`01`..`08` → `docs/asset_prompts/archive/`)
 
-*(Lưu ý: Mỗi Hero dùng 3 sheet cốt lõi `idle` + `attack` + `skill`; chạy/bị đánh/chết do `UnitVisual` nội suy 60 FPS nên vừa nhẹ RAM điện thoại vừa tạo nhanh gấp đôi.)*
+### Đợt 1 — Khung MVP (Nền, UI, Base Heroes, Quái, Boss, VFX & Items)
+- [x] `inbox/bg_battle_vistas_pack.png` — 4 nền chiến đấu theo chương ([archive/05_backgrounds_ui_cards_decor.md](archive/05_backgrounds_ui_cards_decor.md))
+- [x] `inbox/bg_lobby_town.png`, `inbox/bg_campaign_map.png`, `inbox/bg_ui_scenes_pack.png` ([archive/06_screens_lobby_map_gacha_idle.md](archive/06_screens_lobby_map_gacha_idle.md))
+- [x] `inbox/ui_hud_nav_pack.png`, `inbox/ui_small_nav_icons_pack.png`, `inbox/ui_panels_buttons_pack.png`, `inbox/ui_campaign_battle_hud_pack.png`, `inbox/ui_gacha_and_skill_icons_pack.png` ([archive/05](archive/05_backgrounds_ui_cards_decor.md) & [archive/06](archive/06_screens_lobby_map_gacha_idle.md))
+- [x] `inbox/ui_hero_cards_rarity_pack.png`, `inbox/ui_currency_stars_pack.png`, `inbox/ui_class_tags_pack.png` ([archive/05_backgrounds_ui_cards_decor.md](archive/05_backgrounds_ui_cards_decor.md))
+- [x] `inbox/heroes_row1_pack.png`, `inbox/heroes_row2_pack.png`, `inbox/heroes_portraits_row1.png`, `inbox/heroes_portraits_row2.png`, `inbox/knight_evolution_pack.png` ([archive/01_heroes_base_and_evolution.md](archive/01_heroes_base_and_evolution.md))
+- [x] `inbox/knight_branch_evolution_pack.png` ([archive/06_screens_lobby_map_gacha_idle.md](archive/06_screens_lobby_map_gacha_idle.md))
+- [x] `inbox/enemies_mobs_base_pack.png`, `inbox/bosses_base_pack.png` ([archive/03_enemies_and_bosses.md](archive/03_enemies_and_bosses.md))
+- [x] `inbox/vfx_offensive_pack.png`, `inbox/vfx_buff_dark_pack.png`, `inbox/icons_status_buffs_pack.png`, `inbox/icons_status_debuffs_pack.png`, `inbox/icons_elements_pack.png`, `inbox/items_equipment_pack.png`, `inbox/items_loot_resources_pack.png` ([archive/04_vfx_status_elements_items.md](archive/04_vfx_status_elements_items.md))
 
-- **Đội hình khởi đầu ([02_hero_animations_knight_and_core.md](02_hero_animations_knight_and_core.md)):**
-  - [x] `knight_idle.png`, `knight_run.png`, `knight_attack.png`, `knight_skill.png` (4 prompts)
-  - [x] `archer_idle.png`, `archer_attack.png`, `archer_skill.png` (3 prompts)
-  - [x] `mage_idle.png`, `mage_attack.png`, `mage_skill.png` (3 prompts)
-  - [x] `priest_idle.png`, `priest_attack.png`, `priest_skill.png` (3 prompts)
-- **8 Hero MVP còn lại ([07_remaining_heroes_anim.md](07_remaining_heroes_anim.md)):**
-  - [x] `paladin_{idle,attack,skill}.png` (3 prompts)
-  - [x] `berserker_{idle,attack,skill}.png` (3 prompts)
-  - [x] `assassin_{idle,attack,skill}.png` (3 prompts)
-  - [x] `sniper_{idle,attack,skill}.png` (3 prompts)
-  - [x] `enchanter_{idle,attack,skill}.png` (3 prompts)
-  - [x] `druid_{idle,attack,skill}.png` (3 prompts)
-  - [x] `samurai_{idle,attack,skill}.png` (3 prompts)
-  - [x] `ninja_{idle,attack,skill}.png` (3 prompts)
-- **Hoạt ảnh tiến hóa nhánh Knight ([06_screens_lobby_map_gacha_idle.md](06_screens_lobby_map_gacha_idle.md)):**
-  - [x] `knight_fire_idle.png`, `knight_fire_skill.png` (2 prompts)
-  - [x] `knight_holy_idle.png`, `knight_holy_skill.png` (2 prompts)
-- **Goblin, 5 Quái & 3 Boss ([03_enemies_and_bosses.md](03_enemies_and_bosses.md) & [08_remaining_mobs_bosses_anim.md](08_remaining_mobs_bosses_anim.md)):**
-  - [x] `goblin_run.png`, `goblin_attack.png`, `goblin_death.png` (3 prompts)
-  - [x] `{skeleton,wolf,boar,dark_knight,dark_mage}_attack.png` (5 prompts)
-  - [x] `boss_golem_{idle,attack,skill}.png` (3 prompts)
-  - [x] `boss_ice_dragon_{idle,attack,skill}.png` (3 prompts)
-  - [x] `boss_demon_lord_{idle,attack,skill}.png` (3 prompts)
+### Đợt 2 — Hoạt Ảnh Chiến Đấu 12 Hero, Quái & 3 Boss
+- [x] Đội hình khởi đầu (`knight`, `archer`, `mage`, `priest`) ([archive/02_hero_animations_knight_and_core.md](archive/02_hero_animations_knight_and_core.md))
+- [x] 8 Hero MVP còn lại (`paladin`, `berserker`, `assassin`, `sniper`, `enchanter`, `druid`, `samurai`, `ninja`) ([archive/07_remaining_heroes_anim.md](archive/07_remaining_heroes_anim.md))
+- [x] Hoạt ảnh tiến hóa nhánh Knight (`knight_fire`, `knight_holy`) ([archive/06_screens_lobby_map_gacha_idle.md](archive/06_screens_lobby_map_gacha_idle.md))
+- [x] Goblin, 5 Quái & 3 Boss ([archive/03_enemies_and_bosses.md](archive/03_enemies_and_bosses.md) & [archive/08_remaining_mobs_bosses_anim.md](archive/08_remaining_mobs_bosses_anim.md))
 
----
-
-## Đợt 3 — Hoàn Thiện Mỹ Thuật & Chi Tiết Phụ (Tùy Chọn Bổ Sung)
-
-- [x] `inbox/bg_title_splash.png` — Màn hình Title Key Art ([06](06_screens_lobby_map_gacha_idle.md))
-- [x] `inbox/bg_parallax_props_pack.png` — Lớp tiền/trung cảnh Parallax 4 chương ([05](05_backgrounds_ui_cards_decor.md))
-- [x] `inbox/ui_rank_emblems_pack.png` — 6 huy hiệu Rank ([05](05_backgrounds_ui_cards_decor.md))
-- [x] `inbox/decor_system_props_pack.png` — 12 vật trang trí Guild & bản đồ ([05](05_backgrounds_ui_cards_decor.md))
-- [x] `inbox/knight_hit.png`, `inbox/knight_death.png` — Bộ Hit/Death riêng cho Knight nếu muốn thay hiệu ứng code ([02](02_hero_animations_knight_and_core.md))
+### Đợt 3 — Hoàn Thiện Mỹ Thuật & Chi Tiết Phụ
+- [x] `inbox/bg_title_splash.png` ([archive/06_screens_lobby_map_gacha_idle.md](archive/06_screens_lobby_map_gacha_idle.md))
+- [x] `inbox/bg_parallax_props_pack.png`, `inbox/ui_rank_emblems_pack.png`, `inbox/decor_system_props_pack.png` ([archive/05_backgrounds_ui_cards_decor.md](archive/05_backgrounds_ui_cards_decor.md))
+- [x] `inbox/knight_hit.png`, `inbox/knight_death.png` ([archive/02_hero_animations_knight_and_core.md](archive/02_hero_animations_knight_and_core.md))

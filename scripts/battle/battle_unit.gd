@@ -44,6 +44,8 @@ var _pending_skill: bool = false
 var _pending_allies: Array = []
 var _pending_enemies: Array = []
 var _pending_target: BattleUnit = null
+var _impact_pending := false
+var _visual_finished := true
 
 
 func setup_hero(hero_id: String, rec: Dictionary, slot_idx: int, synergy: Dictionary, world_pos: Vector2) -> void:
@@ -123,11 +125,18 @@ func setup_enemy(enemy_id: String, slot_idx: int, stat_scale: float, world_pos: 
 func _build_visual(anim_map: Dictionary, f_sign: float, u_scale: float) -> void:
 	visual = UnitVisual.new()
 	visual.facing_sign = f_sign
+	visual.art_facing = f_sign
+	visual.motion_root = self
+	visual.home_position = _home_pos
 	visual.unit_scale = u_scale
 	visual.juice_enabled = true
 	add_child(visual)
 	visual.configure_animations(anim_map)
 	visual.impact_hit.connect(_on_visual_impact)
+	visual.action_finished.connect(func() -> void:
+		_visual_finished = true
+		_action_busy = _impact_pending
+	)
 
 
 func _build_bars() -> void:
@@ -185,10 +194,12 @@ func tick_combat(delta: float, allies: Array, enemies: Array) -> void:
 		white_hp = maxf(hp, white_hp - max_hp * 0.65 * delta)
 		_refresh_bars()
 
+	# Count cooldown from resolution while the visual completes its recovery.
+	if not _impact_pending:
+		attack_cooldown -= delta * (spd / 100.0)
 	if _action_busy:
 		return
 
-	attack_cooldown -= delta * (spd / 100.0)
 	if attack_cooldown <= 0.0:
 		var use_skill := energy >= max_energy
 		var target := _select_target(allies, enemies, use_skill)
@@ -244,26 +255,37 @@ func _start_action(target: BattleUnit, use_skill: bool, allies: Array, enemies: 
 		energy = 0.0
 		_refresh_bars()
 
-	# Ranged units stay near home; melee/assassins dash right up to target!
-	var dash_target_x: float = target.global_position.x
-	if attack_range == "ranged" or target.is_hero == is_hero:
-		dash_target_x = global_position.x + visual.facing_sign * 130.0
-	if use_skill:
-		visual.play_skill(dash_target_x)
-	else:
-		visual.play_attack(dash_target_x)
-
-	var safety_t := get_tree().create_timer(0.85)
-	safety_t.timeout.connect(func() -> void:
-		if is_instance_valid(self):
-			_action_busy = false
-	)
+	_impact_pending = true
+	_visual_finished = false
+	var ranged := attack_range == "ranged"
+	var hostile := target.is_hero != is_hero
+	var flank := hostile and ai_profile == "assassin_backline"
+	var destination := global_position
+	if hostile and not ranged:
+		var stride := 63.0 if flank else (103.0 if is_boss or target.is_boss else 79.0)
+		var side := visual.facing_sign if flank else -visual.facing_sign
+		var arena := get_parent() as Node2D
+		var local_destination := target.position + Vector2(side * stride, 12.0 if flank else 6.0 * (slot_index - target.slot_index))
+		local_destination.x = clampf(local_destination.x, 45.0, 675.0)
+		destination = arena.to_global(local_destination)
+	visual.play_action(use_skill, destination, flank, ranged, target if hostile else null)
 
 
 func _on_visual_impact(_is_skill_sig: bool) -> void:
-	_action_busy = false
-	if is_dead:
+	if is_dead or not _impact_pending:
 		return
+	if attack_range == "ranged" and is_instance_valid(_pending_target) and _pending_target != self:
+		var offset := Vector2(0.0, -108.0 if _pending_target.is_boss else -69.0)
+		visual.fire_projectile(_pending_target, offset, unit_id, element, _pending_skill, _resolve_impact)
+		return
+	_resolve_impact()
+
+
+func _resolve_impact() -> void:
+	if is_dead or not _impact_pending:
+		return
+	_impact_pending = false
+	_action_busy = not _visual_finished
 
 	var events: Array = []
 	var live_enemies := _pending_enemies.filter(func(u: BattleUnit) -> bool: return is_instance_valid(u) and not u.is_dead)
@@ -279,6 +301,9 @@ func _on_visual_impact(_is_skill_sig: bool) -> void:
 				events.append({"kind": "heal", "unit": _pending_target, "amount": int(round(heal_amt)), "crit": false})
 			else:
 				events.append(_strike_enemy(_pending_target, 1.0, false))
+				if attack_range == "ranged":
+					var tint: Color = UnitVisual.ELEMENT_COLORS.get(element, Color.WHITE)
+					_pending_target.visual.spawn_vfx_sprite(vfx_path, Vector2(0, -64), 0.52, tint)
 	else:
 		# Ultimate Skills driven by Role & USP Branch!
 		if ai_profile == "holy_protect":
@@ -315,6 +340,9 @@ func _on_visual_impact(_is_skill_sig: bool) -> void:
 				events.append(ev)
 
 	action_resolved.emit(self, _pending_target, _pending_skill, events)
+	_pending_target = null
+	_pending_allies.clear()
+	_pending_enemies.clear()
 
 
 func _strike_enemy(target: BattleUnit, dmg_mult: float, force_crit: bool) -> Dictionary:
@@ -325,6 +353,9 @@ func _strike_enemy(target: BattleUnit, dmg_mult: float, force_crit: bool) -> Dic
 	var raw_dmg := atk * dmg_mult * el_mult * crit_mult * mitigation * randf_range(0.94, 1.06)
 	var final_dmg := maxf(12.0, raw_dmg)
 	target.take_damage(final_dmg, is_crit or _pending_skill)
+	var stop := 0.068 if _pending_skill else 0.033
+	visual.freeze_pose(stop)
+	target.visual.freeze_pose(stop)
 	return {
 		"kind": "damage",
 		"unit": target,
@@ -349,13 +380,18 @@ func take_damage(amount: float, heavy: bool) -> void:
 	if hp <= 0.0:
 		is_dead = true
 		_action_busy = false
+		_impact_pending = false
+		_pending_target = null
+		_pending_allies.clear()
+		_pending_enemies.clear()
 		_hp_bg.visible = false
 		_name_lbl.visible = false
 		visual.play_death()
 		died.emit(self)
+	elif _action_busy:
+		visual.flash_hit(heavy)
 	else:
-		if not _action_busy:
-			visual.play_hit(heavy)
+		visual.play_hit(heavy)
 
 
 func apply_heal(amount: float) -> void:

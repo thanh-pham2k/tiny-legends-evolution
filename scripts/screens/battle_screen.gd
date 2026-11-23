@@ -5,6 +5,15 @@ var _stage_num: int = 1
 var _stage_data: Dictionary = {}
 
 var _arena: Node2D
+var _arena_frame: Node2D
+var _wide_background: TextureRect
+var _arena_background: Sprite2D
+var _lane: Polygon2D
+var _top_hud: PanelContainer
+var _squad_hud: PanelContainer
+var _squad_grid: GridContainer
+var _synergy_info: Label
+var _shake_tween: Tween
 var _spotlight_dim: ColorRect
 var _ult_banner: Label
 var _timer_lbl: Label
@@ -20,7 +29,6 @@ var _battle_time: float = 90.0
 var _speed_mult: float = 1.0
 var _paused: bool = false
 var _finished: bool = false
-var _hitstop_active: bool = false
 
 # Hero 2 Front (index 0..1) + 3 Back (index 2..4)
 const HERO_SLOTS := [
@@ -53,15 +61,30 @@ func _ready() -> void:
 	_build_top_hud()
 	_build_bottom_squad_hud()
 	_spawn_combatants()
+	resized.connect(_layout)
+	_squad_hud.minimum_size_changed.connect(_layout_squad_hud)
+	_layout()
 
 
 func _build_arena() -> void:
+	var bg_tex: Texture2D = load(String(_stage_data["bg_path"]))
+	_wide_background = TextureRect.new()
+	_wide_background.texture = bg_tex
+	_wide_background.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_wide_background.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	_wide_background.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_wide_background.modulate = Color(0.78, 0.78, 0.82)
+	_wide_background.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_child(_wide_background)
+
+	_arena_frame = Node2D.new()
+	add_child(_arena_frame)
 	_arena = Node2D.new()
 	_arena.name = "BattleArena"
-	add_child(_arena)
+	_arena_frame.add_child(_arena)
 
 	var bg := Sprite2D.new()
-	var bg_tex: Texture2D = load(String(_stage_data["bg_path"]))
+	_arena_background = bg
 	bg.texture = bg_tex
 	bg.centered = false
 	if bg_tex != null:
@@ -72,6 +95,7 @@ func _build_arena() -> void:
 
 	# Ground lane readability tint
 	var lane := Polygon2D.new()
+	_lane = lane
 	lane.polygon = PackedVector2Array([
 		Vector2(-30, 410), Vector2(750, 410), Vector2(750, 880), Vector2(-30, 880)
 	])
@@ -101,6 +125,7 @@ func _build_arena() -> void:
 
 func _build_top_hud() -> void:
 	var bar := PanelContainer.new()
+	_top_hud = bar
 	bar.position = Vector2(12, 14)
 	bar.size = Vector2(696, 78)
 	bar.add_theme_stylebox_override("panel", UiFx.make_panel_style(Color(0.09, 0.08, 0.16, 0.88), Color(0.95, 0.78, 0.36), 18, 2))
@@ -171,6 +196,7 @@ func _make_hud_icon_btn(icon_path: String, cb: Callable) -> Button:
 
 func _build_bottom_squad_hud() -> void:
 	var panel := PanelContainer.new()
+	_squad_hud = panel
 	panel.position = Vector2(0, 860)
 	panel.size = Vector2(720, 420)
 	panel.add_theme_stylebox_override("panel", UiFx.make_panel_style(Color(0.09, 0.08, 0.16, 0.98), Color(0.95, 0.78, 0.36), 0, 3))
@@ -182,15 +208,19 @@ func _build_bottom_squad_hud() -> void:
 
 	var syn := GameData.get_synergy_bonus(PlayerState.team_slots)
 	var top_info := Label.new()
+	_synergy_info = top_info
 	top_info.text = "FULL AUTO 5v5  •  Synergy: %s" % String(syn["label"])
 	top_info.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	top_info.add_theme_font_size_override("font_size", 16)
 	top_info.add_theme_color_override("font_color", Color(0.62, 0.96, 0.68))
 	vb.add_child(top_info)
 
-	var row := HBoxContainer.new()
-	row.alignment = BoxContainer.ALIGNMENT_CENTER
-	row.add_theme_constant_override("separation", 10)
+	var row := GridContainer.new()
+	_squad_grid = row
+	row.columns = 5
+	row.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	row.add_theme_constant_override("h_separation", 10)
+	row.add_theme_constant_override("v_separation", 8)
 	vb.add_child(row)
 
 	for i in 5:
@@ -204,20 +234,22 @@ func _build_bottom_squad_hud() -> void:
 		card.custom_minimum_size = Vector2(128, 178)
 		row.add_child(card)
 
-		var port := TextureRect.new()
-		port.texture = load(GameData.get_hero_portrait_path(hid, evo))
-		port.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		port.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		port.position = Vector2(18, 18)
-		port.size = Vector2(92, 92)
-		card.add_child(port)
-
 		var frame := TextureRect.new()
+		frame.name = "Frame"
 		frame.texture = load("res://assets/sprites/ui/ui_battle_portrait_frame.png")
 		frame.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		frame.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		frame.size = Vector2(128, 140)
 		card.add_child(frame)
+
+		var port := TextureRect.new()
+		port.name = "Portrait"
+		port.texture = load(GameData.get_hero_portrait_path(hid, evo))
+		port.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		port.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		port.position = Vector2(22, 22)
+		port.size = Vector2(84, 72)
+		card.add_child(port)
 
 		var ult_glow := TextureRect.new()
 		ult_glow.texture = load("res://assets/sprites/ui/ui_battle_ult_ready_glow.png")
@@ -300,16 +332,16 @@ func _process(delta: float) -> void:
 
 
 func _on_unit_action_resolved(caster: BattleUnit, _target: BattleUnit, is_skill: bool, events: Array) -> void:
+	if events.is_empty():
+		return
 	if is_skill:
 		AudioManager.play_sfx("skill_cast")
 		_show_ult_spotlight("%s: %s!" % [caster.display_name, caster.skill_name])
 		_ai_feed_lbl.text = "[%s] %s (%s)" % [caster.display_name, caster.skill_name, caster.ai_profile]
-		_trigger_hitstop(0.08)
-		_shake_arena(10.0)
+		_shake_arena(5.5)
 	else:
 		AudioManager.play_sfx("sword_hit")
-		_trigger_hitstop(0.035)
-		_shake_arena(3.5)
+		_shake_arena(1.8)
 
 	for ev in events:
 		var u: BattleUnit = ev["unit"]
@@ -350,13 +382,16 @@ func _show_result_modal(won: bool, rew: Dictionary) -> void:
 	var dim := ColorRect.new()
 	dim.color = Color(0.02, 0.02, 0.06, 0.72)
 	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	dim.z_index = 40
 	add_child(dim)
 
 	var pc := PanelContainer.new()
 	pc.position = Vector2(90, 320)
 	pc.size = Vector2(540, 560)
 	pc.add_theme_stylebox_override("panel", UiFx.make_panel_style(Color(0.11, 0.10, 0.19, 0.98), Color(1.0, 0.82, 0.36) if won else Color(0.86, 0.32, 0.34), 24, 3))
+	pc.z_index = 41
 	add_child(pc)
+	UiFx.center_modal(self, pc)
 
 	var vb := VBoxContainer.new()
 	vb.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -414,19 +449,11 @@ func _show_ult_spotlight(msg: String) -> void:
 	bt.tween_property(_ult_banner, "modulate:a", 0.0, 0.35)
 
 
-func _trigger_hitstop(dur: float) -> void:
-	if _hitstop_active or _paused:
-		return
-	_hitstop_active = true
-	Engine.time_scale = 0.08
-	await get_tree().create_timer(dur, true, false, true).timeout
-	if is_instance_valid(self) and not _paused and not _finished:
-		Engine.time_scale = _speed_mult
-	_hitstop_active = false
-
-
 func _shake_arena(strength: float) -> void:
-	var st := create_tween()
+	if _shake_tween != null:
+		_shake_tween.kill()
+	_shake_tween = create_tween()
+	var st := _shake_tween
 	st.tween_property(_arena, "position", Vector2(-strength, strength * 0.5), 0.03)
 	st.tween_property(_arena, "position", Vector2(strength, -strength * 0.4), 0.03)
 	st.tween_property(_arena, "position", Vector2.ZERO, 0.04)
@@ -467,7 +494,7 @@ func _spawn_combat_popup(pos: Vector2, kind: String, amt: int, is_crit: bool, ef
 func _toggle_speed() -> void:
 	_speed_mult = 2.0 if is_equal_approx(_speed_mult, 1.0) else 1.0
 	_speed_lbl.text = "%dx" % int(_speed_mult)
-	if not _paused and not _hitstop_active:
+	if not _paused:
 		Engine.time_scale = _speed_mult
 
 
@@ -479,3 +506,40 @@ func _toggle_pause() -> void:
 
 func _exit_tree() -> void:
 	Engine.time_scale = 1.0
+
+
+func _layout() -> void:
+	var wide := UiFx.is_wide(size)
+	_wide_background.visible = wide
+	_arena_background.visible = not wide
+	_lane.visible = not wide
+	_squad_grid.columns = 2 if wide else 5
+	_synergy_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART if wide else TextServer.AUTOWRAP_OFF
+	_ai_feed_lbl.autowrap_mode = _synergy_info.autowrap_mode
+	if wide:
+		var side_width := clampf(size.x * 0.27, 252.0, 344.0)
+		var stage_width := size.x - side_width - 32.0
+		UiFx.fit_control(_top_hud, Vector2(696, 78), Rect2(12, 12, stage_width - 12, 78))
+		_layout_squad_hud.call_deferred()
+		# Keep the combat coordinates stable when the window rotates mid-action.
+		var combat := UiFx.fit_rect(Vector2(720, 590), Rect2(8, 90, stage_width, size.y - 94))
+		var zoom := combat.size.x / 720.0
+		_arena_frame.scale = Vector2.ONE * zoom
+		_arena_frame.position = combat.position - Vector2(0, 205.0 * zoom)
+	else:
+		_arena_frame.position = Vector2.ZERO
+		_arena_frame.scale = Vector2.ONE
+		UiFx.fit_control(_top_hud, Vector2(696, 78), Rect2(12, 14, 696, 78))
+		_layout_squad_hud.call_deferred()
+
+
+func _layout_squad_hud() -> void:
+	# Grid columns and label wrapping invalidate the VBox minimum size.
+	# Refit after those changes are reflected in the panel.
+	var content_min := _squad_hud.get_combined_minimum_size()
+	if UiFx.is_wide(size):
+		var side_width := clampf(size.x * 0.27, 252.0, 344.0)
+		UiFx.fit_control(_squad_hud, Vector2(332, 649).max(content_min),
+			Rect2(size.x - side_width - 12, 12, side_width, size.y - 24))
+	else:
+		UiFx.fit_control(_squad_hud, Vector2(720, 420).max(content_min), Rect2(0, 860, 720, 420))

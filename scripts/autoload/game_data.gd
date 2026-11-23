@@ -308,72 +308,69 @@ func get_hero_portrait_path(hero_id: String, evo_tier: String = "basic") -> Stri
 	return "res://assets/sprites/heroes/%s_portrait.png" % hero_id
 
 
-func get_hero_anim_map(hero_id: String, evo_tier: String = "basic") -> Dictionary:
-	if hero_id == "knight":
-		if evo_tier == "fire":
-			return {
-				"idle": {"texture": load("res://assets/sprites/heroes/knight_fire_idle.png"), "hframes": 2, "vframes": 2, "frames": 4, "fps": 6.0, "loop": true},
-				"run": {"texture": load("res://assets/sprites/heroes/knight_fire_idle.png"), "hframes": 2, "vframes": 2, "frames": 4, "fps": 10.0, "loop": true},
-				"attack": {"texture": load("res://assets/sprites/heroes/knight_fire_skill.png"), "hframes": 3, "vframes": 2, "frames": 6, "fps": 13.0, "loop": false},
-				"skill": {"texture": load("res://assets/sprites/heroes/knight_fire_skill.png"), "hframes": 3, "vframes": 2, "frames": 6, "fps": 11.0, "loop": false},
-			}
-		elif evo_tier == "holy":
-			return {
-				"idle": {"texture": load("res://assets/sprites/heroes/knight_holy_idle.png"), "hframes": 2, "vframes": 2, "frames": 4, "fps": 6.0, "loop": true},
-				"run": {"texture": load("res://assets/sprites/heroes/knight_holy_idle.png"), "hframes": 2, "vframes": 2, "frames": 4, "fps": 10.0, "loop": true},
-				"attack": {"texture": load("res://assets/sprites/heroes/knight_holy_skill.png"), "hframes": 3, "vframes": 2, "frames": 6, "fps": 13.0, "loop": false},
-				"skill": {"texture": load("res://assets/sprites/heroes/knight_holy_skill.png"), "hframes": 3, "vframes": 2, "frames": 6, "fps": 11.0, "loop": false},
-			}
-		return {
-			"idle": {"texture": load("res://assets/sprites/heroes/knight_idle.png"), "hframes": 2, "vframes": 2, "frames": 4, "fps": 6.0, "loop": true},
-			"run": {"texture": load("res://assets/sprites/heroes/knight_run.png"), "hframes": 3, "vframes": 2, "frames": 6, "fps": 12.0, "loop": true},
-			"attack": {"texture": load("res://assets/sprites/heroes/knight_attack.png"), "hframes": 3, "vframes": 2, "frames": 6, "fps": 14.0, "loop": false},
-			"skill": {"texture": load("res://assets/sprites/heroes/knight_skill.png"), "hframes": 3, "vframes": 2, "frames": 6, "fps": 11.0, "loop": false},
-			"hit": {"texture": load("res://assets/sprites/heroes/knight_hit.png"), "hframes": 3, "vframes": 1, "frames": 3, "fps": 12.0, "loop": false},
-			"death": {"texture": load("res://assets/sprites/heroes/knight_death.png"), "hframes": 2, "vframes": 2, "frames": 4, "fps": 9.0, "loop": false},
-		}
+# Zero-based contact cels selected from the visible swing or release in each sheet.
+const CONTACT_CELS := {
+	"knight": [2, 2], "knight_fire": [3, 3], "knight_holy": [2, 3],
+	"paladin": [2, 3], "berserker": [3, 3], "assassin": [2, 3],
+	"archer": [3, 2], "sniper": [2, 3], "mage": [3, 3],
+	"enchanter": [3, 3], "priest": [3, 3], "druid": [3, 3],
+	"samurai": [3, 3], "ninja": [2, 3], "goblin": [2, 2],
+	"skeleton": [3, 3], "wolf": [3, 3], "boar": [3, 3],
+	"dark_knight": [3, 3], "dark_mage": [3, 3], "boss_golem": [2, 3],
+	"boss_ice_dragon": [3, 3], "boss_demon_lord": [2, 3],
+}
 
-	var tex_idle: Texture2D = load("res://assets/sprites/heroes/%s_idle.png" % hero_id)
-	var tex_atk: Texture2D = load("res://assets/sprites/heroes/%s_attack.png" % hero_id)
-	var tex_skill: Texture2D = load("res://assets/sprites/heroes/%s_skill.png" % hero_id)
+
+func _animation(prefix: String, state: String, cols: int, rows: int, fps: float, loop: bool) -> Dictionary:
 	return {
-		"idle": {"texture": tex_idle, "hframes": 2, "vframes": 2, "frames": 4, "fps": 6.0, "loop": true},
-		"run": {"texture": tex_idle, "hframes": 2, "vframes": 2, "frames": 4, "fps": 10.0, "loop": true},
-		"attack": {"texture": tex_atk, "hframes": 3, "vframes": 2, "frames": 6, "fps": 13.0, "loop": false},
-		"skill": {"texture": tex_skill, "hframes": 3, "vframes": 2, "frames": 6, "fps": 11.0, "loop": false},
+		"texture": load("%s_%s.png" % [prefix, state]),
+		"hframes": cols, "vframes": rows, "frames": cols * rows,
+		"fps": fps, "loop": loop,
 	}
+
+
+func get_hero_anim_map(hero_id: String, evo_tier: String = "basic") -> Dictionary:
+	if not HEROES.has(hero_id):
+		hero_id = "knight"
+	var actor := "knight_" + evo_tier if hero_id == "knight" and evo_tier in ["fire", "holy"] else hero_id
+	var prefix := "res://assets/sprites/heroes/" + actor
+	var idle := _animation(prefix, "idle", 2, 2, 3.0, true)
+	idle["ping_pong"] = true
+	var attack := _animation(prefix, "skill" if actor != hero_id else "attack", 3, 2, 13.0, false)
+	var skill := _animation(prefix, "skill", 3, 2, 11.0, false)
+	var contacts: Array = CONTACT_CELS[actor]
+	attack["contact"] = contacts[0]
+	skill["contact"] = contacts[1]
+	var anims := {"idle": idle, "run": idle, "attack": attack, "skill": skill}
+	if actor == "knight":
+		anims["run"] = _animation(prefix, "run", 3, 2, 9.5, true)
+		anims["hit"] = _animation(prefix, "hit", 3, 1, 12.0, false)
+		anims["death"] = _animation(prefix, "death", 2, 2, 9.0, false)
+	return anims
 
 
 func get_enemy_anim_map(enemy_id: String) -> Dictionary:
-	var info: Dictionary = ENEMIES.get(enemy_id, ENEMIES["goblin"])
-	if bool(info.get("is_boss", false)):
-		var b_idle: Texture2D = load("res://assets/sprites/bosses/%s_idle.png" % enemy_id)
-		var b_atk: Texture2D = load("res://assets/sprites/bosses/%s_attack.png" % enemy_id)
-		var b_skill: Texture2D = load("res://assets/sprites/bosses/%s_skill.png" % enemy_id)
-		return {
-			"idle": {"texture": b_idle, "hframes": 2, "vframes": 2, "frames": 4, "fps": 5.5, "loop": true},
-			"run": {"texture": b_idle, "hframes": 2, "vframes": 2, "frames": 4, "fps": 8.0, "loop": true},
-			"attack": {"texture": b_atk, "hframes": 3, "vframes": 2, "frames": 6, "fps": 12.0, "loop": false},
-			"skill": {"texture": b_skill, "hframes": 3, "vframes": 2, "frames": 6, "fps": 10.0, "loop": false},
-		}
-
+	if not ENEMIES.has(enemy_id):
+		enemy_id = "goblin"
+	var boss := bool(ENEMIES[enemy_id].get("is_boss", false))
+	var prefix := "res://assets/sprites/%s/%s" % ["bosses" if boss else "enemies", enemy_id]
+	var attack := _animation(prefix, "attack", 3, 2, 13.0, false)
+	var skill := _animation(prefix, "skill", 3, 2, 10.0, false) if boss else attack.duplicate()
+	var contacts: Array = CONTACT_CELS[enemy_id]
+	attack["contact"] = contacts[0]
+	skill["contact"] = contacts[1]
+	# Some mobs only have a swing sheet. Its standing opener shares the
+	# combat pivot/scale, and the pose drives a procedural locomotion fallback.
+	var idle := attack.duplicate()
+	idle["idle_frames"] = 1
+	if boss:
+		idle = _animation(prefix, "idle", 2, 2, 2.8, true)
+		idle["ping_pong"] = true
+	var anims := {"idle": idle, "run": idle, "attack": attack, "skill": skill}
 	if enemy_id == "goblin":
-		return {
-			"idle": {"texture": load("res://assets/sprites/enemies/goblin_run.png"), "hframes": 3, "vframes": 2, "frames": 6, "fps": 7.0, "loop": true},
-			"run": {"texture": load("res://assets/sprites/enemies/goblin_run.png"), "hframes": 3, "vframes": 2, "frames": 6, "fps": 12.0, "loop": true},
-			"attack": {"texture": load("res://assets/sprites/enemies/goblin_attack.png"), "hframes": 3, "vframes": 2, "frames": 6, "fps": 13.0, "loop": false},
-			"skill": {"texture": load("res://assets/sprites/enemies/goblin_attack.png"), "hframes": 3, "vframes": 2, "frames": 6, "fps": 13.0, "loop": false},
-			"death": {"texture": load("res://assets/sprites/enemies/goblin_death.png"), "hframes": 2, "vframes": 2, "frames": 4, "fps": 9.0, "loop": false},
-		}
-
-	var base_tex: Texture2D = load("res://assets/sprites/enemies/%s_base.png" % enemy_id)
-	var atk_tex: Texture2D = load("res://assets/sprites/enemies/%s_attack.png" % enemy_id)
-	return {
-		"idle": {"texture": base_tex, "hframes": 1, "vframes": 1, "frames": 1, "fps": 6.0, "loop": true},
-		"run": {"texture": base_tex, "hframes": 1, "vframes": 1, "frames": 1, "fps": 8.0, "loop": true},
-		"attack": {"texture": atk_tex, "hframes": 3, "vframes": 2, "frames": 6, "fps": 13.0, "loop": false},
-		"skill": {"texture": atk_tex, "hframes": 3, "vframes": 2, "frames": 6, "fps": 13.0, "loop": false},
-	}
+		anims["run"] = _animation(prefix, "run", 3, 2, 9.5, true)
+		anims["death"] = _animation(prefix, "death", 2, 2, 9.0, false)
+	return anims
 
 
 func get_synergy_bonus(team_ids: Array) -> Dictionary:

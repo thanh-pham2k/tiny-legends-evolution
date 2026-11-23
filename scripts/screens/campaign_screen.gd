@@ -8,6 +8,10 @@ var _power_lbl: Label
 var _slot_row: HBoxContainer
 var _pin_buttons: Array[Button] = []
 var _picker_modal: Control
+var _map_wrap: Control
+var _map_backdrop: TextureRect
+var _top_bar: PanelContainer
+var _formation_panel: PanelContainer
 
 
 func setup_screen(app: Control, _params: Dictionary = {}) -> void:
@@ -19,13 +23,23 @@ func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	PlayerState.roster_changed.connect(_refresh_formation)
 
+	_map_backdrop = TextureRect.new()
+	_map_backdrop.texture = load("res://assets/sprites/backgrounds/bg_campaign_map.png")
+	_map_backdrop.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_map_backdrop.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	_map_backdrop.modulate = Color(0.34, 0.31, 0.43)
+	_map_backdrop.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_map_backdrop.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_child(_map_backdrop)
+
 	var map_wrap := Control.new()
+	_map_wrap = map_wrap
 	map_wrap.position = Vector2(0, 0)
 	map_wrap.size = Vector2(720, 845)
 	add_child(map_wrap)
 
 	var map_bg := TextureRect.new()
-	map_bg.texture = load("res://assets/sprites/backgrounds/bg_campaign_map.png")
+	map_bg.texture = _map_backdrop.texture
 	map_bg.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	map_bg.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	map_bg.size = Vector2(720, 845)
@@ -44,10 +58,13 @@ func _ready() -> void:
 	_build_formation_panel()
 	_refresh_stage_info()
 	_refresh_formation()
+	resized.connect(_layout)
+	_layout()
 
 
 func _build_top_bar() -> void:
 	var bar := PanelContainer.new()
+	_top_bar = bar
 	bar.position = Vector2(14, 14)
 	bar.size = Vector2(692, 74)
 	bar.add_theme_stylebox_override("panel", UiFx.make_panel_style(Color(0.10, 0.08, 0.16, 0.88), Color(0.95, 0.78, 0.36), 18, 2))
@@ -144,6 +161,7 @@ func _update_pin_styles() -> void:
 
 func _build_formation_panel() -> void:
 	var pc := PanelContainer.new()
+	_formation_panel = pc
 	pc.position = Vector2(0, 845)
 	pc.size = Vector2(720, 435)
 	pc.add_theme_stylebox_override("panel", UiFx.make_panel_style(Color(0.10, 0.09, 0.17, 0.98), Color(0.95, 0.78, 0.36), 0, 3))
@@ -224,22 +242,24 @@ func _refresh_formation() -> void:
 			var evo := String(rec["evo"])
 			var rar := String(info["rarity"])
 
-			var port := TextureRect.new()
-			port.texture = load(GameData.get_hero_portrait_path(hid, evo))
-			port.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-			port.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-			port.position = Vector2(15, 22)
-			port.size = Vector2(92, 84)
-			port.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			slot_btn.add_child(port)
-
 			var frame := TextureRect.new()
+			frame.name = "Frame"
 			frame.texture = load(GameData.RARITIES[rar]["frame"])
 			frame.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 			frame.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 			frame.size = Vector2(122, 152)
 			frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			slot_btn.add_child(frame)
+
+			var port := TextureRect.new()
+			port.name = "Portrait"
+			port.texture = load(GameData.get_hero_portrait_path(hid, evo))
+			port.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			port.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			port.position = Vector2(20, 30)
+			port.size = Vector2(82, 74)
+			port.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			slot_btn.add_child(port)
 
 			var el_ic := TextureRect.new()
 			el_ic.texture = load(GameData.ELEMENTS[info["element"]]["icon"])
@@ -278,6 +298,7 @@ func _open_hero_picker(slot_idx: int) -> void:
 	pc.size = Vector2(640, 720)
 	pc.add_theme_stylebox_override("panel", UiFx.make_panel_style(Color(0.11, 0.10, 0.19, 0.98), Color(1.0, 0.80, 0.36), 22, 3))
 	_picker_modal.add_child(pc)
+	UiFx.center_modal(_picker_modal, pc)
 
 	var vb := VBoxContainer.new()
 	vb.add_theme_constant_override("separation", 14)
@@ -321,3 +342,17 @@ func _open_hero_picker(slot_idx: int) -> void:
 	cancel.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	cancel.pressed.connect(_picker_modal.queue_free)
 	vb.add_child(cancel)
+
+
+func _layout() -> void:
+	var wide := UiFx.is_wide(size)
+	_map_backdrop.visible = wide
+	_top_bar.position.x = (size.x - _top_bar.size.x) * 0.5
+	if wide:
+		var height := size.y - 106.0
+		var map_width := (size.x - 54.0) * 0.46
+		UiFx.fit_control(_map_wrap, Vector2(720, 845), Rect2(18, 90, map_width, height))
+		UiFx.fit_control(_formation_panel, Vector2(720, 435), Rect2(36 + map_width, 90, size.x - 54 - map_width, height))
+	else:
+		UiFx.fit_control(_map_wrap, Vector2(720, 845), Rect2(0, 0, 720, 845))
+		UiFx.fit_control(_formation_panel, Vector2(720, 435), Rect2(0, 845, 720, 435))

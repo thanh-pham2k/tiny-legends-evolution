@@ -130,3 +130,29 @@ static func create_ambient_particles(biome_id: String, area_width: float = 720.0
 			p.scale_amount_max = 9.0
 			p.color = Color(1.0, 0.72, 0.84, 0.78)
 	return p
+
+
+static func is_wide(area: Vector2) -> bool:
+	return area.x >= area.y * 1.15
+
+
+static func fit_rect(content: Vector2, bounds: Rect2) -> Rect2:
+	var factor := maxf(0.0, minf(bounds.size.x / content.x, bounds.size.y / content.y))
+	var fitted := content * factor
+	return Rect2(bounds.get_center() - fitted * 0.5, fitted)
+
+
+static func fit_control(control: Control, content: Vector2, bounds: Rect2) -> void:
+	var fitted := fit_rect(content, bounds)
+	control.size = content
+	control.scale = Vector2.ONE * (fitted.size.x / content.x)
+	control.position = fitted.position
+
+
+static func center_modal(host: Control, panel: Control) -> void:
+	var content := panel.size
+	var layout := func() -> void:
+		fit_control(panel, content.max(panel.get_combined_minimum_size()), Rect2(Vector2(16, 16), host.size - Vector2(32, 32)))
+	host.resized.connect(layout)
+	panel.minimum_size_changed.connect(layout)
+	layout.call()

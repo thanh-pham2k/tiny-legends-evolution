@@ -24,12 +24,10 @@ func _ready() -> void:
 
 	_screen_host = Control.new()
 	_screen_host.name = "ScreenHost"
-	_screen_host.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(_screen_host)
 
 	_popup_host = Control.new()
 	_popup_host.name = "PopupHost"
-	_popup_host.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_popup_host.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_popup_host)
 
@@ -39,8 +37,20 @@ func _ready() -> void:
 	_fade_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_fade_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_fade_overlay)
+	resized.connect(_layout_hosts)
+	_layout_hosts()
 
 	navigate_to("title", {}, true)
+
+
+func _layout_hosts() -> void:
+	for host in [_screen_host, _popup_host]:
+		if UiFx.is_wide(size):
+			host.position = Vector2.ZERO
+			host.scale = Vector2.ONE
+			host.size = size
+		else:
+			UiFx.fit_control(host, Vector2(720, 1280), Rect2(Vector2.ZERO, size))
 
 
 func navigate_to(screen_name: String, params: Dictionary = {}, instant: bool = false) -> void:

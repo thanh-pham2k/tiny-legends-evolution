@@ -66,12 +66,47 @@ UI_PRESERVE_INTERIOR = {
 }
 
 ANIM_GRIDS = {
-    "idle": (2, 2, "bottom-center"),
-    "run": (3, 2, "bottom-center"),
-    "attack": (3, 2, "bottom-center"),
-    "skill": (3, 2, "bottom-center"),
-    "hit": (3, 1, "bottom-center"),
-    "death": (2, 2, "bottom-center"),
+    "idle": (2, 2),
+    "run": (3, 2),
+    "attack": (3, 2),
+    "skill": (3, 2),
+    "hit": (3, 1),
+    "death": (2, 2),
+}
+
+GROUND_MARGIN = 48
+
+# Archive cels whose weapon, wing or spell dominates the density estimate.
+# Coordinates are measured in the sliced master: torso x, head y, foot y, ground y.
+# An airborne foot can sit above the ground pivot.
+ARCHIVE_LANDMARKS = {
+    "009-output-file-inbox-knight-skill-png-asset-knight-heroic-wave-.png": {
+        0: (226, 143, 475, 475), 1: (303, 65, 411, 462),
+        2: (267, 128, 455, 455), 3: (183, 88, 398, 398),
+        4: (268, 89, 391, 402), 5: (247, 64, 413, 413),
+    },
+    "003-output-file-inbox-paladin-skill-png-asset-paladin-aegis-holy.png": {
+        2: (208, 146, 466, 466), 3: (186, 117, 414, 414),
+        4: (214, 112, 421, 421),
+    },
+    "005-output-file-inbox-berserker-attack-png-asset-berserker-heavy.png": {
+        1: (284, 106, 434, 434), 3: (204, 134, 414, 425),
+        4: (175, 116, 430, 430),
+    },
+    "031-output-file-inbox-boss-ice-dragon-attack-png-asset-boss-fros.png": {
+        0: (217, 75, 441, 441), 1: (206, 63, 441, 441),
+        2: (245, 84, 441, 441), 3: (253, 63, 397, 397),
+        4: (205, 59, 410, 410), 5: (205, 60, 418, 418),
+    },
+    "032-output-file-inbox-boss-ice-dragon-skill-png-asset-boss-frost.png": {
+        0: (205, 86, 442, 442), 1: (227, 60, 440, 440),
+        2: (227, 56, 436, 436), 3: (300, 60, 436, 436),
+        4: (232, 61, 428, 428), 5: (172, 72, 432, 432),
+    },
+    "030-output-file-inbox-boss-ice-dragon-idle-png-asset-boss-frost-.png": {
+        0: (255, 76, 537, 537), 1: (246, 70, 552, 552),
+        2: (215, 84, 580, 580), 3: (285, 119, 579, 579),
+    },
 }
 
 KNOWN_MOBS = {"goblin", "skeleton", "wolf", "boar", "dark_knight", "dark_mage"}
@@ -427,78 +462,87 @@ def trim_alpha_bbox(rgba: np.ndarray, alpha_thresh: int = 12):
     return int(xs.min()), int(ys.min()), int(xs.max()) + 1, int(ys.max()) + 1
 
 
-def body_bbox_from_ink(rgba: np.ndarray):
-    """Bounding box of dark-ink character outlines, ignoring bright/cyan VFX and soft shadows."""
-    dark_ink = (rgba[:, :, 3] > 200) & (rgba[:, :, :3].max(axis=2) < 95)
-    ys, xs = np.where(dark_ink)
-    if len(xs) < 25 or len(ys) < 25:
-        return trim_alpha_bbox(rgba)
-    return int(xs.min()), int(ys.min()), int(xs.max()) + 1, int(ys.max()) + 1
+def weighted_quantile(weights: np.ndarray, fraction: float) -> int:
+    return int(np.searchsorted(np.cumsum(weights), weights.sum() * fraction))
 
 
-def normalize_sheet(
-    cells_rgba,
-    cols: int,
-    rows: int,
-    cell_size: int,
-    anchor: str = "bottom-center",
-    max_content_ratio: float = 0.88,
-    margin_bottom: int = 6,
-    uniform_scale: bool = True,
-    target_body_h: int = 0,
-):
-    bboxes = [trim_alpha_bbox(c) for c in cells_rgba]
-    ink_bboxes = [body_bbox_from_ink(c) for c in cells_rgba]
-    valid = [(i, b) for i, b in enumerate(bboxes) if b is not None]
+def body_landmarks(rgba: np.ndarray):
+    """Estimate torso center, foot centroid, sole line and head-to-sole height.
 
-    target = int(round(cell_size * max_content_ratio))
-    global_scale = 1.0
-    if valid and target_body_h > 0:
-        valid_ink_hs = [
-            ink_bboxes[i][3] - ink_bboxes[i][1]
-            for i, _ in valid
-            if ink_bboxes[i] is not None
-        ]
-        ref_body_h = float(np.median(valid_ink_hs)) if valid_ink_hs else float(target_body_h)
-        global_scale = float(target_body_h) / max(1.0, ref_body_h)
-        max_w = max(b[2] - b[0] for _, b in valid)
-        max_h = max(b[3] - b[1] for _, b in valid)
-        fit_cap = min((cell_size - 4) / max(1, max_w), (cell_size - margin_bottom - 4) / max(1, max_h))
-        global_scale = min(global_scale, fit_cap)
-    elif valid and uniform_scale:
-        max_w = max(b[2] - b[0] for _, b in valid)
-        max_h = max(b[3] - b[1] for _, b in valid)
-        global_scale = min(target / max(1, max_w), target / max(1, max_h))
+    Interior thickness downweights thin blades, contour strokes, and detached
+    sparks. Use the lower columns under the torso to locate supporting feet.
+    """
+    bbox = trim_alpha_bbox(rgba)
+    if bbox is None:
+        return None
+    x0, y0, x1, y1 = bbox
+    opaque = rgba[y0:y1, x0:x1, 3] > 160
+    depth = ndimage.distance_transform_edt(np.pad(opaque, 1))[1:-1, 1:-1]
+    if not depth.any():
+        depth = (rgba[y0:y1, x0:x1, 3] > 12).astype(float)
+    mass = depth ** 1.7
+    rows = mass.sum(axis=1)
+    upper, lower = (weighted_quantile(rows, q) for q in (0.02, 0.98))
+    span = max(1, lower - upper)
+    band_top = upper + round(0.27 * span)
+    band_end = max(band_top + 1, upper + round(0.68 * span))
+    torso = mass[band_top:band_end]
+    x = weighted_quantile(torso.sum(axis=0), 0.5)
+    y = band_top + weighted_quantile(torso.sum(axis=1), 0.5)
 
-    sheet = Image.new("RGBA", (cols * cell_size, rows * cell_size), (0, 0, 0, 0))
-    for idx, cell in enumerate(cells_rgba):
-        canvas = Image.new("RGBA", (cell_size, cell_size), (0, 0, 0, 0))
-        b = bboxes[idx]
-        if b is not None:
-            crop = Image.fromarray(cell[b[1]:b[3], b[0]:b[2]])
-            cw, ch = crop.size
-            sc = global_scale if (uniform_scale or target_body_h > 0) else min(target / max(1, cw), target / max(1, ch))
-            nw = max(1, int(round(cw * sc)))
-            nh = max(1, int(round(ch * sc)))
-            resized = crop.resize((nw, nh), Image.Resampling.LANCZOS)
-            ib = ink_bboxes[idx]
-            if anchor == "bottom-center" and target_body_h > 0 and ib is not None:
-                ink_cx = ((ib[0] + ib[2]) * 0.5 - b[0]) * sc
-                ink_bot = (ib[3] - b[1]) * sc
-                px = int(round(cell_size * 0.5 - ink_cx))
-                py = int(round((cell_size - margin_bottom) - ink_bot))
-                px = max(2, min(cell_size - nw - 2, px))
-                py = max(2, min(cell_size - nh - 2, py))
-            elif anchor == "bottom-center":
-                px = (cell_size - nw) // 2
-                py = cell_size - margin_bottom - nh
-            else:
-                px = (cell_size - nw) // 2
-                py = (cell_size - nh) // 2
-            canvas.paste(resized, (px, py), resized)
-        col = idx % cols
-        row = idx // cols
-        sheet.paste(canvas, (col * cell_size, row * cell_size), canvas)
+    xlo = max(0, x - round(span * 0.46))
+    xhi = x + round(span * 0.46) + 1
+    foot_start = min(depth.shape[0] - 1, upper + round(span * 0.78))
+    feet = depth[foot_start:, xlo:xhi] ** 1.15
+    if not feet.any():
+        xlo = 0
+        feet = depth[foot_start:]
+    foot_x = xlo + weighted_quantile(feet.sum(axis=0), 0.5)
+    foot_y = foot_start + weighted_quantile(feet.sum(axis=1), 0.5)
+    sole = min(y1 - y0, foot_start + weighted_quantile(feet.sum(axis=1), 0.98) + 2)
+    head = max(0, upper - max(1, round(span * 0.075)))
+    return x + x0, y + y0, foot_x + x0, foot_y + y0, sole + y0, max(1, sole - head)
+
+
+def normalize_sheet(cells_rgba, cols, rows, cell_size, target_body_h, animation, authored):
+    frames = []
+    landmarks = [body_landmarks(cell) for cell in cells_rgba]
+    sizes = [body[5] for body in landmarks if body is not None]
+    if not sizes:
+        raise ValueError("Animation sheet contains no visible frame")
+    # Preserve the falling pose's change in height and the hit pose's recoil.
+    fixed_scale = target_body_h / sizes[0] if animation in ("death", "hit") else None
+    half_width = cell_size // 2
+    above_ground = cell_size - 12
+    for index, (cell, body) in enumerate(zip(cells_rgba, landmarks)):
+        if body is None:
+            raise ValueError("Animation sheet contains an empty frame")
+        x0, y0, x1, y1 = trim_alpha_bbox(cell, alpha_thresh=0)
+        torso_x, _, _, _, sole, height = body
+        if index in authored:
+            torso_x, head_y, foot_y, sole = authored[index]
+            height = foot_y - head_y
+        scale = fixed_scale if fixed_scale is not None else target_body_h / height
+        crop = Image.fromarray(cell[y0:y1, x0:x1])
+        width = max(1, round(crop.width * scale))
+        height = max(1, round(crop.height * scale))
+        frame = crop.resize((width, height), Image.Resampling.LANCZOS)
+        left = round((x0 - torso_x) * width / crop.width)
+        top = round((y0 - sole) * height / crop.height)
+        half_width = max(half_width, 3 - left, 3 + width + left)
+        above_ground = max(above_ground, 3 - top)
+        frames.append((frame, left, top))
+
+    # Extra horizontal and overhead space preserves the authored VFX. The
+    # ground margin is part of the runtime sprite-origin contract.
+    cell_w = half_width * 2
+    cell_h = above_ground + GROUND_MARGIN
+    sheet = Image.new("RGBA", (cols * cell_w, rows * cell_h))
+    for index, (frame, left, top) in enumerate(frames):
+        if top + frame.height >= GROUND_MARGIN:
+            raise ValueError(f"Frame {index + 1} extends below its reserved ground margin")
+        sheet.paste(frame, (index % cols * cell_w + half_width + left,
+                            index // cols * cell_h + above_ground + top))
     return sheet
 
 
@@ -601,17 +645,17 @@ def adapt_full_bleed_panels(img_arr: np.ndarray, out_names: list, panel_w: int =
 
 
 def classify_anim_sheet(cname: str):
-    """Detect <entity>_<anim>.png and return (sub_dir, cols, rows, cell_size, target_body_h, margin_bottom, anchor)."""
+    """Detect <entity>_<anim>.png and return (sub_dir, cols, rows, cell_size, target_body_h)."""
     m = re.match(r"^([a-z0-9_]+)_(idle|run|attack|skill|hit|death)\.png$", cname)
     if not m:
         return None
     entity, anim = m.group(1), m.group(2)
-    cols, rows, anchor = ANIM_GRIDS[anim]
+    cols, rows = ANIM_GRIDS[anim]
     if entity.startswith("boss_"):
-        return ("bosses", cols, rows, 256, 164, 14, anchor)
+        return ("bosses", cols, rows, 256, 164)
     if entity in KNOWN_MOBS:
-        return ("enemies", cols, rows, 192, 104, 12, anchor)
-    return ("heroes", cols, rows, 192, 104, 12, anchor)
+        return ("enemies", cols, rows, 192, 104)
+    return ("heroes", cols, rows, 192, 104)
 
 
 def process_file(raw_path: str, cname: str, dry_run: bool = False) -> bool:
@@ -770,35 +814,45 @@ def process_file(raw_path: str, cname: str, dry_run: bool = False) -> bool:
     # 8. Dynamic Hero / Mob / Boss Animation Sheets (<entity>_<anim>.png)
     anim_spec = classify_anim_sheet(cname)
     if anim_spec is not None:
-        sub_dir, cols, rows, cell_size, target_body_h, margin_bottom, anchor = anim_spec
+        sub_dir, cols, rows, cell_size, target_body_h = anim_spec
         if dry_run:
             print(f"  [DRY-RUN] {cname} -> assets/sprites/{sub_dir}/{cname} ({cols}x{rows} @ {cell_size}px, body={target_body_h}px)")
             return True
         img_arr = np.array(Image.open(raw_path).convert("RGB"))
         hole_set = set(range(cols * rows))
         cells = extract_cells(img_arr, cols, rows, cname, per_row=True, hole_cells=hole_set)
-        sheet = normalize_sheet(
-            cells,
-            cols,
-            rows,
-            cell_size,
-            anchor=anchor,
-            margin_bottom=margin_bottom,
-            target_body_h=target_body_h,
-        )
+        try:
+            authored = ARCHIVE_LANDMARKS.get(os.path.basename(raw_path), {})
+            sheet = normalize_sheet(cells, cols, rows, cell_size, target_body_h,
+                                    cname.rsplit("_", 1)[1][:-4], authored)
+        except ValueError as exc:
+            raise ValueError(f"{cname}: {exc}") from exc
         sheet.save(os.path.join(SPRITES_DIR, sub_dir, cname))
         return True
 
     return False
 
 
-def adapt_all(from_archive: bool = False, dry_run: bool = False):
+def adapt_all(from_archive: bool = False, dry_run: bool = False, animations_only: bool = False):
     for sub in SPRITE_SUBDIRS:
         os.makedirs(os.path.join(SPRITES_DIR, sub), exist_ok=True)
     os.makedirs(ARCHIVE_DIR, exist_ok=True)
 
     src_dir = ARCHIVE_DIR if from_archive else INBOX_DIR
     raw_files = sorted(glob.glob(os.path.join(src_dir, "*.png")))
+    # Prefer the current batch art for animation master duplicates. The older
+    # unprefixed Knight masters use a different design from hit/death.
+    if from_archive:
+        batch_anims = set()
+        for path in raw_files:
+            raw_name = os.path.basename(path)
+            canonical = resolve_canonical_name(raw_name)
+            if canonical != raw_name and classify_anim_sheet(canonical):
+                batch_anims.add(canonical)
+        raw_files = [path for path in raw_files if os.path.basename(path) not in batch_anims]
+    if animations_only:
+        raw_files = [path for path in raw_files if classify_anim_sheet(
+            resolve_canonical_name(os.path.basename(path)))]
     print(f"Found {len(raw_files)} PNG file(s) in {'archive/' if from_archive else 'inbox/'}")
 
     adapted_count = 0
@@ -823,8 +877,9 @@ def main():
     parser = argparse.ArgumentParser(description="Adapt raw assets from inbox/ to assets/sprites/ and archive/.")
     parser.add_argument("--from-archive", action="store_true", help="Re-process raw PNGs from archive/")
     parser.add_argument("--dry-run", action="store_true", help="List detected assets without writing or moving files")
+    parser.add_argument("--animations-only", action="store_true", help="Skip packs and non-animation sprites")
     args = parser.parse_args()
-    adapt_all(from_archive=args.from_archive, dry_run=args.dry_run)
+    adapt_all(from_archive=args.from_archive, dry_run=args.dry_run, animations_only=args.animations_only)
 
 
 if __name__ == "__main__":

@@ -1,6 +1,8 @@
 extends Control
 
 var _app: Control
+var _banner: PanelContainer
+var _start_btn: Button
 
 
 func setup_screen(app: Control, _params: Dictionary = {}) -> void:
@@ -23,6 +25,7 @@ func _ready() -> void:
 
 	# Title Crest Banner
 	var banner := PanelContainer.new()
+	_banner = banner
 	banner.position = Vector2(50, 74)
 	banner.size = Vector2(620, 170)
 	banner.add_theme_stylebox_override("panel", UiFx.make_panel_style(Color(0.10, 0.08, 0.18, 0.82), Color(1.0, 0.82, 0.34, 0.95), 24, 3))
@@ -60,15 +63,24 @@ func _ready() -> void:
 
 	# Tap to Start button
 	var start_btn := UiFx.make_styled_button("TAP TO START", Color(0.84, 0.46, 0.14), Vector2(360, 82), 28)
+	_start_btn = start_btn
 	start_btn.position = Vector2(180, 1080)
 	start_btn.pressed.connect(func() -> void:
 		if _app != null:
 			_app.navigate_to("lobby")
 	)
 	add_child(start_btn)
+	resized.connect(_layout)
+	_layout()
 
 	# Gentle pulse animation on Tap to Start
 	start_btn.pivot_offset = start_btn.size * 0.5
 	var pt := create_tween().set_loops()
 	pt.tween_property(start_btn, "scale", Vector2(1.05, 1.05), 0.75).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	pt.tween_property(start_btn, "scale", Vector2(0.98, 0.98), 0.75).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+
+
+func _layout() -> void:
+	_banner.position.x = (size.x - _banner.size.x) * 0.5
+	_start_btn.position = Vector2((size.x - _start_btn.size.x) * 0.5,
+		size.y - (132.0 if UiFx.is_wide(size) else 200.0))
